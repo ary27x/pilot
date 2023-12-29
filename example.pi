@@ -1,3 +1,5 @@
 number1 = 141;
-____3 = 27;
-return (number1);
+num2 = 141;
+number_3 = 27;
+return 6;
+
