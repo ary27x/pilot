@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 
 enum type 
 {
@@ -12,7 +13,9 @@ enum type
     TOKEN_EQUALS,
     TOKEN_SEMICOLON,
     TOKEN_LEFT_PAREN,
-    TOKEN_RIGHT_PAREN
+    TOKEN_RIGHT_PAREN,
+    TOKEN_KEYWORD,
+    TOKEN_EOF
 };
 
 struct Token
@@ -32,6 +35,8 @@ std::string typeToString(enum type TYPE)
         case TOKEN_SEMICOLON : return "TOKEN_SEMICOLON";
         case TOKEN_LEFT_PAREN : return "TOKEN_LEFT_PAREN";
         case TOKEN_RIGHT_PAREN : return "TOKEN_RIGHT_PAREN";
+        case TOKEN_KEYWORD : return "TOKEN_KEYWORD";
+        case TOKEN_EOF : return "TOKEN_EOF";
         
     }
 }
@@ -79,7 +84,8 @@ class Lexer
         }
     }
 
-    Token * tokenizeID()
+    std::vector <std::string> keywords = {"return" , "print"};
+    Token * tokenizeID_KEYWORD()
     {
       std::stringstream buffer;
       buffer << advance(); 
@@ -90,8 +96,7 @@ class Lexer
       }
 
       Token * newToken = new Token();
-
-      newToken->TYPE = TOKEN_ID;
+      newToken->TYPE = (std::find(keywords.begin() , keywords.end() , buffer.str()) != keywords.end()) ? TOKEN_KEYWORD : TOKEN_ID;
       newToken->VALUE = buffer.str();
 
       return newToken;
@@ -130,7 +135,7 @@ class Lexer
             checkAndSkip();
             if(isalpha(current) || current == '_') // this is the logic for ids
             {
-                tokens.push_back(tokenizeID());
+                tokens.push_back(tokenizeID_KEYWORD());
                 continue;
             }
 
@@ -167,9 +172,16 @@ class Lexer
                  
                     break;
                 }
+                case 0 :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_EOF));
+                 
+                    break;
+                }
+                
                 default:
                 {
-                    std::cout << "[!] PARSER ERROR : Unidentified symbol " << current <<std::endl ;
+                    std::cout << "[!] LEXER ERROR : Unidentified symbol " << current <<std::endl ;
                     std::cout << "LINE NUMBER : " << lineNumber << " CHARACTER NUMBER : " << characterNumber <<std::endl; 
                     exit(1);
                 }
