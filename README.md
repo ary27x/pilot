@@ -1,5 +1,7 @@
 COMPILER WRITTEN PURELY IN C++
 
+FOLLOW THE PROPJECT ON YOUTUBE : https://www.youtube.com/watch?v=AqAhDDobGkc
+
 TODO : 
 
 
