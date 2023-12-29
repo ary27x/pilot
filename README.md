@@ -1,6 +1,6 @@
 COMPILER WRITTEN PURELY IN C++
 
-FOLLOW THE PROPJECT ON YOUTUBE : https://www.youtube.com/watch?v=hQl4j_RygXg
+FOLLOW THE PROPJECT ON YOUTUBE : https://www.youtube.com/playlist?list=PLm7R-cUo29CVmWXQ2ZiaGcUIOVy0FEGaH
 
 TODO : 
 
