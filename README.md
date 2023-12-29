@@ -1,9 +1,10 @@
-A compiler written purely in c++
+COMPILER WRITTEN PURELY IN C++
 
-kind of like a todo list
+TODO : 
 
-lexer [X]
 
-parser []
+LEXER [X]
 
-x86 generation []
+PARSER [X]
+
+x86 GENERATOION []
