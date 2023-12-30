@@ -10,3 +10,10 @@ LEXER [X]
 PARSER [X]
 
 x86 GENERATION []
+
+
+(random things i wanna add : 
+
+support for comments
+
+)
