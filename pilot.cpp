@@ -3,8 +3,10 @@
 #include <sstream>
 #include <vector>
 
-#include "headers\lexer.hpp"
-#include "headers\parser.hpp"
+#include "headers/lexer.hpp"
+#include "headers/parser.hpp"
+#include "headers/generator.hpp"
+
 
 int main(int argc , char ** argv)
 {
@@ -15,7 +17,7 @@ int main(int argc , char ** argv)
     }
     // pilot example.pi
 
-    std::cout << "Reading from the file name : " << argv[1] << std::endl;
+    std::cout << "COMPILING : " << argv[1] << std::endl;
     std::ifstream sourceFileStream (argv[1]);
 
     std::stringstream buffer;
@@ -28,8 +30,8 @@ int main(int argc , char ** argv)
     }
 
     std::string sourceCode = buffer.str();
-    std::cout << "This is the source code  : " << std::endl << std::endl << sourceCode << std::endl;
-
+    //std::cout << "This is the source code  : " << std::endl << std::endl << sourceCode << std::endl;
+    sourceCode.append("\0");
     Lexer lexer(sourceCode);
     std::vector <Token *> tokens = lexer.tokenize();
     int counter = 0;
@@ -43,14 +45,33 @@ int main(int argc , char ** argv)
     for(Token * temp : tokens)
     {
         counter++;
-        std::cout << counter << ") " << temp->VALUE << " " << typeToString(temp->TYPE) << std::endl;
+      //  std::cout << counter << ") " << temp->VALUE << " " << typeToString(temp->TYPE) << std::endl;
     }
 
     Parser parser(tokens);
     AST_NODE * ROOT = parser.parse();
     std::cout << "[*] NO SYNTAX ERROR !" << std::endl;
-    std::cout << "this is the number of statements " << ROOT->SUB_STATEMENTS.size() << std::endl;
-    std::cout << std::endl << "END " << std::endl;
+    //std::cout << "this is the number of statements " << ROOT->SUB_STATEMENTS.size() << std::endl;
+    Generator generator(ROOT , argv[1]);
+    generator.generate();
+
+    std::string filenameWithoutExtension = argv[1];
+    filenameWithoutExtension.pop_back();
+    filenameWithoutExtension.pop_back();
+    filenameWithoutExtension.pop_back();
+    
+
+    std::stringstream assemblerInstruction;
+    assemblerInstruction << "nasm -f elf64 " + filenameWithoutExtension + ".pi.asm";
+    
+    system(assemblerInstruction.str().c_str());
+
+    std::stringstream linkerInstruction;
+    linkerInstruction << "ld -o " + filenameWithoutExtension + " " + filenameWithoutExtension + ".pi.o";
+    
+    system(linkerInstruction.str().c_str());
+
+    //std::cout << std::endl << "END " << std::endl;
 
     return 0;
 }
