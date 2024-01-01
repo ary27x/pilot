@@ -1,5 +1,3 @@
-number1 = 141;
-num2 = 141;
-number_3 = 27;
-return 6;
-
+print("hello there!");
+print("this is a string...");
+return 7;
