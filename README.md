@@ -2,8 +2,8 @@ COMPILER WRITTEN PURELY IN C++
 
 DEPENDENCIES :
 
-1) NASM
-2) LD
+1) NASM (for assembling the .pi)
+2) LD (for linking the object file)
 3) LINUX BASED OS
 
 HOW TO USE:
