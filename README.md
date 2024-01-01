@@ -14,6 +14,6 @@ HOW TO USE:
 4) RUN :                             ./<your_file_name>
 
 
-FOLLOW THE PROPJECT ON YOUTUBE : https://www.youtube.com/playlist?list=PLm7R-cUo29CVmWXQ2ZiaGcUIOVy0FEGaH
+FOLLOW THE PROJECT ON YOUTUBE : https://www.youtube.com/playlist?list=PLm7R-cUo29CVmWXQ2ZiaGcUIOVy0FEGaH
 
 
