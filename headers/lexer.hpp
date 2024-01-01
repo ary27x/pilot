@@ -15,6 +15,8 @@ enum type
     TOKEN_LEFT_PAREN,
     TOKEN_RIGHT_PAREN,
     TOKEN_KEYWORD,
+    TOKEN_STRING,
+    TOKEN_QUOTES,
     TOKEN_EOF
 };
 
@@ -36,8 +38,10 @@ std::string typeToString(enum type TYPE)
         case TOKEN_LEFT_PAREN : return "TOKEN_LEFT_PAREN";
         case TOKEN_RIGHT_PAREN : return "TOKEN_RIGHT_PAREN";
         case TOKEN_KEYWORD : return "TOKEN_KEYWORD";
+        case TOKEN_STRING : return "TOKEN_STRING";
+        case TOKEN_QUOTES : return "TOKEN_QUOTES";
         case TOKEN_EOF : return "TOKEN_EOF";
-        
+        default : return "UNRECOGNIZED STRING";
     }
 }
 
@@ -102,6 +106,26 @@ class Lexer
       return newToken;
 
     }
+    Token * tokenizeSTRING()
+    {
+        std::stringstream buffer;
+        while (current != '"')
+        {
+            if (current == '\0')
+            {
+                std::cout << "[!] Lexer Error : Missing Quotes";
+                exit(1);
+            }
+            buffer << advance();
+        }
+
+        Token * newToken = new Token();
+        newToken->TYPE = TOKEN_STRING;
+        newToken->VALUE = buffer.str();
+        
+        return newToken;
+
+        }
     Token * tokenizeSPECIAL(enum type TYPE)
     {
         Token * newToken = new Token();
@@ -160,6 +184,14 @@ class Lexer
                     break;
                 }
                 
+                case '"' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
+                    tokens.push_back(tokenizeSTRING());
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
+
+                    break;
+                }
                 case '(' :
                 {
                     tokens.push_back(tokenizeSPECIAL(TOKEN_LEFT_PAREN));
