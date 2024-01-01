@@ -11,8 +11,24 @@ enum NODE_TYPE
     NODE_VARIABLE,
     NODE_RETURN,
     NODE_PRINT,
-    NODE_INT
+    NODE_INT,
+    NODE_STRING
 };
+
+std::string nodeToString(enum NODE_TYPE TYPE)
+{
+    switch (TYPE)
+    {
+        case NODE_ROOT : return "NODE_ROOT";
+        case NODE_VARIABLE : return "NODE_VARIABLE";
+        case NODE_RETURN : return "NODE_RETURN";
+        case NODE_PRINT : return "NODE_PRINT";
+        case NODE_INT : return "NODE_INT";
+        case NODE_STRING : return "NODE_STRING";
+        default : return "UNRECOGNIZED NODE";
+        
+    }
+}
 
 struct AST_NODE 
 {
@@ -83,17 +99,35 @@ class Parser{
         return newNode;
     }
 
+    AST_NODE * parseSTRING()
+    {
+        if (current->TYPE != TOKEN_STRING)
+        {
+            std::cout << "[!] Parser Error : the print statement does not have a string linked to it";
+            exit(1);
+        }
+
+        AST_NODE * newNode = new AST_NODE();
+        newNode->TYPE = NODE_STRING;
+        newNode->VALUE = &current->VALUE;
+        proceed(TOKEN_STRING);
+        return newNode;
+    }
     AST_NODE * parsePRINT()
     {
-        proceed(TOKEN_KEYWORD);
+        proceed (TOKEN_KEYWORD);
+
+        proceed(TOKEN_LEFT_PAREN);
+        proceed(TOKEN_QUOTES);
+        
         AST_NODE * newNode = new AST_NODE();
         newNode->TYPE = NODE_PRINT;
-        proceed(TOKEN_LEFT_PAREN);
-        newNode->CHILD = parseINT();
+        newNode->CHILD = parseSTRING();
+
+        proceed(TOKEN_QUOTES);
         proceed(TOKEN_RIGHT_PAREN);
 
         return newNode;
-
     }
     AST_NODE * parseKEYWORD()
     {
