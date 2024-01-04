@@ -81,6 +81,8 @@ class Parser{
         proceed(TOKEN_EQUALS);
 
         AST_NODE * newNode = new AST_NODE();
+
+        newNode->VALUE = buffer;
         newNode->TYPE = NODE_VARIABLE;
         newNode->CHILD = parseINT();
 
@@ -108,8 +110,10 @@ class Parser{
         }
 
         AST_NODE * newNode = new AST_NODE();
+
         newNode->TYPE = NODE_STRING;
         newNode->VALUE = &current->VALUE;
+        
         proceed(TOKEN_STRING);
         return newNode;
     }
