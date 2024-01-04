@@ -5,6 +5,7 @@
 #include "parser.hpp"
 #include <fstream>
 #include <vector>
+#include <unordered_map>
 
 class Generator{
     public:
@@ -19,6 +20,8 @@ class Generator{
     {
         assemblyFile << sectionData.str();
         assemblyFile << sectionText.str();
+        assemblyFile << stackReset.str();
+        assemblyFile << returnStream.str();
 
         assemblyFile.close();
     }
@@ -90,21 +93,56 @@ class Generator{
         sectionText << "_L \nsyscall \n\n";
     }
 
+    int variableReferenceExists(std::string * TEST_STRING)
+    {
+        int counter = 0;
+        for (auto iterator = variableReferences.begin() ; iterator != variableReferences.end() ; iterator++)
+        {
+            if (iterator->first == *TEST_STRING) return counter;
+            counter++;
+        }
+        return -1;
+    }
 
+    void generateVARIABLE(AST_NODE * VAR_ID)
+    {
+        
+        int offset;
+        int elemOffset = variableReferenceExists(VAR_ID->VALUE);
+        if (elemOffset == -1)
+        {
+            variableReferences[*VAR_ID->VALUE] = VAR_ID->CHILD->VALUE;
+            sectionText << "sub rsp , 4\n";
+            elemOffset = 0;
+            offsetCounter++;
+        }
+
+        offset = (offsetCounter - elemOffset) * 4; // what to choose between dword and qword
+        sectionText << "mov dword [rbp - " << std::to_string(offset);
+        sectionText << "] , " + * VAR_ID->CHILD->VALUE + "\n";
+
+    }
+    
     void generate()
     {
         stringReferenceCounter = 0;
+        offsetCounter = 0;
         sectionData << "section .data\n\n";
-        sectionText << "section .text\n\nglobal _start\n_start:\n\n";
+        sectionText << "section .text\n\nglobal _start\n_start:\n\npush rbp\nmov rbp , rsp\n\n";
+        
         for (AST_NODE * CURRENT : AST_ROOT->SUB_STATEMENTS)
         {
             switch(CURRENT->TYPE)
             {
-                case NODE_RETURN : {sectionText << generateRETURN(CURRENT); break;}
+                case NODE_RETURN : {returnStream << generateRETURN(CURRENT); break;}
                 case NODE_PRINT : {generatePRINT(CURRENT); break;}
+                case NODE_VARIABLE : {generateVARIABLE(CURRENT); break;}
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CURRENT->TYPE); break;}
             }
         }
+        stackReset << "\nadd rsp , " + std::to_string(offsetCounter * 4);
+        stackReset << "\nmov rsp , rbp\n";
+        stackReset << "pop rbp\n\n";
         writeSections();
     }
     
@@ -112,8 +150,12 @@ class Generator{
     private:
     std::stringstream sectionData;
     std::stringstream sectionText;
+    std::stringstream stackReset;
+    std::stringstream returnStream;
     int stringReferenceCounter;
     std::vector <std::string *> stringReferences;
+    std::unordered_map<std::string  , std::string * > variableReferences;
+    int offsetCounter;
     AST_NODE * AST_ROOT;
     std::ofstream assemblyFile;
 };
