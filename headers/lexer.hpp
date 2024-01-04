@@ -204,6 +204,14 @@ class Lexer
                  
                     break;
                 }
+                case '~':
+                {
+                    while (current != '\n' &&  current != '\0')
+                    {
+                        advance();
+                    }
+                    break;
+                }
                 case 0 :
                 {
                     tokens.push_back(tokenizeSPECIAL(TOKEN_EOF));
