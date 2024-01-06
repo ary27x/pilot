@@ -18,6 +18,7 @@ class Generator{
     
     void writeSections()
     {
+        assemblyFile << includes.str();
         assemblyFile << sectionData.str();
         assemblyFile << sectionText.str();
         assemblyFile << stackReset.str();
@@ -60,7 +61,7 @@ class Generator{
     {
         sectionData << "SRef" + std::to_string(referenceNumber);
         sectionData << " :\n";
-        sectionData << "db \"" + *NEW_ENTRY + "\"\n";
+        sectionData << "db \"" + *NEW_ENTRY + "\" , 10 \n";
         sectionData << "SRef" + std::to_string(referenceNumber);
         sectionData << "_L : equ $-SRef" + std::to_string(referenceNumber);
         sectionData << "\n\n"; 
@@ -74,23 +75,61 @@ class Generator{
             std::cout << "[!] Generation Error : the print statement has no string linked to it";
             exit(1);
         }
-
-        int referenceNumber = lookup(STATEMENT->CHILD->VALUE);
-
-        if (referenceNumber == -1)
+        switch (STATEMENT->CHILD->TYPE)
         {
-            referenceNumber = stringReferenceCounter;
-            
-            sectionDataDefine(STATEMENT->CHILD->VALUE , referenceNumber);
-            stringReferences.push_back(STATEMENT->CHILD->VALUE);
-            stringReferenceCounter++;
-        }
+            case NODE_VARIABLE:
+            {
+                int offset;
+                int elemOffset = variableReferenceExists(STATEMENT->CHILD->VALUE);
+                if (elemOffset == -1)
+                {
+                    std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *STATEMENT->CHILD->VALUE << std::endl;
+                    exit(1);
+                }
 
-        sectionText << "mov rax , 1\n";
-        sectionText << "mov rdi , 1\n";
-        sectionText << "mov rsi , SRef" + std::to_string(referenceNumber);
-        sectionText << "\nmov rdx , SRef" + std::to_string(referenceNumber);
-        sectionText << "_L \nsyscall \n\n";
+                offset = (offsetCounter - elemOffset) * 4; // what to choose between dword and qword
+                sectionText << "mov eax , dword [rbp - " << std::to_string(offset);
+                sectionText << "]\ncall _printINTEGER\n\n";
+
+
+                break;
+            }
+            case NODE_INT :
+            {
+                sectionText << "\nmov eax , " + *STATEMENT->CHILD->VALUE;
+                sectionText << "\ncall _printINTEGER\n\n";
+                
+                break;
+            }
+            case NODE_STRING :
+            {
+                
+                int referenceNumber = lookup(STATEMENT->CHILD->VALUE);
+
+                if (referenceNumber == -1)
+                {
+                    referenceNumber = stringReferenceCounter;
+            
+                    sectionDataDefine(STATEMENT->CHILD->VALUE , referenceNumber);
+                    stringReferences.push_back(STATEMENT->CHILD->VALUE);
+                    stringReferenceCounter++;
+                }
+
+                sectionText << "mov rax , 1\n";
+                sectionText << "mov rdi , 1\n";
+                sectionText << "mov rsi , SRef" + std::to_string(referenceNumber);
+                sectionText << "\nmov rdx , SRef" + std::to_string(referenceNumber);
+                sectionText << "_L \nsyscall \n\n";
+
+                break;
+            }
+            default : 
+            {
+                std::cout << "[!] Generation Error : Unidentified linkage to print " << nodeToString(STATEMENT->CHILD->TYPE) << std::endl;
+                exit(1);
+            }
+        }
+        
     }
 
     int variableReferenceExists(std::string * TEST_STRING)
@@ -117,9 +156,42 @@ class Generator{
             offsetCounter++;
         }
 
-        offset = (offsetCounter - elemOffset) * 4; // what to choose between dword and qword
-        sectionText << "mov dword [rbp - " << std::to_string(offset);
-        sectionText << "] , " + * VAR_ID->CHILD->VALUE + "\n";
+        offset = (offsetCounter - elemOffset) * 4; 
+
+        switch (VAR_ID->CHILD->TYPE)
+        {
+            case NODE_INT:
+            {
+                sectionText << "mov dword [rbp - " << std::to_string(offset);
+                sectionText << "] , " + * VAR_ID->CHILD->VALUE + "\n";
+                
+                break;
+            }
+            case NODE_VARIABLE:
+            {
+                int offset_RHS;
+                int elemOffset_RHS = variableReferenceExists(VAR_ID->CHILD->VALUE);
+                if (elemOffset_RHS == -1)
+                {
+                    std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *VAR_ID->CHILD->VALUE << std::endl;
+                    exit(1);
+                }
+
+                offset_RHS = (offsetCounter - elemOffset_RHS) * 4; // what to choose between dword and qword
+
+                sectionText << "\nmov eax , dword [rbp - " + std::to_string(offset_RHS);
+                sectionText << "]\nmov dword [rbp - " + std::to_string(offset);
+                sectionText << "] , eax \n\n";
+
+                break;
+
+            }
+            default : {
+                std::cout << "[!] Generation Error : unidentidfied linkage to variable assignment : " << nodeToString(VAR_ID->CHILD->TYPE) << std::endl;
+                exit(1);
+            }
+        }
+        
 
     }
     
@@ -127,6 +199,8 @@ class Generator{
     {
         stringReferenceCounter = 0;
         offsetCounter = 0;
+        includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; // inclusion has to be done ~
+        // ~ in a better way , that is , the file is included only when required 
         sectionData << "section .data\n\n";
         sectionText << "section .text\n\nglobal _start\n_start:\n\npush rbp\nmov rbp , rsp\n\n";
         
@@ -148,6 +222,7 @@ class Generator{
     
 
     private:
+    std::stringstream includes;
     std::stringstream sectionData;
     std::stringstream sectionText;
     std::stringstream stackReset;
