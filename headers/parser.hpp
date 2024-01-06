@@ -74,6 +74,22 @@ class Parser{
         proceed(TOKEN_INT);
         return newNode;
     }
+
+    AST_NODE * parseID_RHS()
+    {
+        std::string * buffer = &current->VALUE;
+        proceed(TOKEN_ID);
+
+        AST_NODE * newNode = new AST_NODE();
+
+        newNode->VALUE = buffer;
+        newNode->TYPE = NODE_VARIABLE;
+
+        return newNode;
+
+    }
+
+
     AST_NODE * parseID()
     {
         std::string * buffer = &current->VALUE;
@@ -81,10 +97,19 @@ class Parser{
         proceed(TOKEN_EQUALS);
 
         AST_NODE * newNode = new AST_NODE();
-
         newNode->VALUE = buffer;
         newNode->TYPE = NODE_VARIABLE;
-        newNode->CHILD = parseINT();
+        
+        switch (current->TYPE)
+        {
+            case TOKEN_INT : {newNode->CHILD = parseINT(); break;}
+            case TOKEN_ID : {newNode->CHILD = parseID_RHS(); break;}
+
+            default : {
+                std::cout << "[!] SYNTAX ERROR : Unidentified Token : " << typeToString(current->TYPE) << std::endl;
+                exit(1);
+            }
+        }
 
         return newNode;
 
@@ -117,21 +142,57 @@ class Parser{
         proceed(TOKEN_STRING);
         return newNode;
     }
-    AST_NODE * parsePRINT()
+    AST_NODE * parsePRINT() // current support is only for 32 bits numbers
     {
         proceed (TOKEN_KEYWORD);
 
         proceed(TOKEN_LEFT_PAREN);
-        proceed(TOKEN_QUOTES);
         
-        AST_NODE * newNode = new AST_NODE();
-        newNode->TYPE = NODE_PRINT;
-        newNode->CHILD = parseSTRING();
+        switch (current->TYPE)
+        {
+            case TOKEN_INT :
+            {
+                AST_NODE * newNode = new AST_NODE();
+                newNode->TYPE = NODE_PRINT;
+                newNode->CHILD = parseINT();
 
-        proceed(TOKEN_QUOTES);
-        proceed(TOKEN_RIGHT_PAREN);
+                proceed(TOKEN_RIGHT_PAREN);
 
-        return newNode;
+                return newNode;
+            }
+            
+            case TOKEN_ID :
+            {
+                AST_NODE * newNode = new AST_NODE();
+                newNode->TYPE = NODE_PRINT;
+                newNode->CHILD = parseID_RHS();
+
+                proceed(TOKEN_RIGHT_PAREN);
+
+                return newNode;
+            }
+            case TOKEN_QUOTES :
+            {
+                
+                proceed(TOKEN_QUOTES);
+        
+                AST_NODE * newNode = new AST_NODE();
+                newNode->TYPE = NODE_PRINT;
+                newNode->CHILD = parseSTRING();
+
+                proceed(TOKEN_QUOTES);
+                proceed(TOKEN_RIGHT_PAREN);
+
+                return newNode;
+            }
+            default :
+            {
+                std::cout << "[!] Parser Error ! Unindentified token : " << typeToString(current->TYPE) << std::endl;
+                exit(1); 
+            }
+        }
+        
+        
     }
     AST_NODE * parseKEYWORD()
     {
