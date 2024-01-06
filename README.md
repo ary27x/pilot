@@ -1,5 +1,7 @@
 COMPILER WRITTEN PURELY IN C++
 
+FILE EXTENSION : .pi
+
 DEPENDENCIES :
 
 1) NASM (for assembling the .pi)
