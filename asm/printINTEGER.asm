@@ -41,7 +41,7 @@ jmp _loopCallRAX
 
 
 _exit:
-call _newLine
+
 pop rdx
 pop rcx
 pop rbx
