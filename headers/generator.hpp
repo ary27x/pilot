@@ -61,20 +61,21 @@ class Generator{
     {
         sectionData << "SRef" + std::to_string(referenceNumber);
         sectionData << " :\n";
-        sectionData << "db \"" + *NEW_ENTRY + "\" , 10 \n";
+        sectionData << "db \"" + *NEW_ENTRY + "\"\n";
         sectionData << "SRef" + std::to_string(referenceNumber);
         sectionData << "_L : equ $-SRef" + std::to_string(referenceNumber);
         sectionData << "\n\n"; 
 
     }
 
-    void generatePRINT(AST_NODE * STATEMENT)
+    void generatePRINT(AST_NODE * STATEMENT , bool recursiveCall = false)
     {
         if (!STATEMENT->CHILD->VALUE)
         {
             std::cout << "[!] Generation Error : the print statement has no string linked to it";
             exit(1);
         }
+        
         switch (STATEMENT->CHILD->TYPE)
         {
             case NODE_VARIABLE:
@@ -129,6 +130,15 @@ class Generator{
                 exit(1);
             }
         }
+        if (STATEMENT->SUB_STATEMENTS.size() != 0)
+        {
+        	generatePRINT(STATEMENT->SUB_STATEMENTS[0] , true);
+        }
+        // we could check for a new line operator from the source code over here
+        // instead of explicitly creating the newline
+	
+	if (!recursiveCall) sectionText << "call _newLine\n"; 
+        
         
     }
 
