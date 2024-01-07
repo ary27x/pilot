@@ -1,9 +1,0 @@
-print("Welcome to the program!");
-number = 25; ~ this is a random number 
-number2 = 943; ~ this is another arbitrary number
-number = 943;
-number2 = 25; ~ we are swapping the two variables
-print("this is the end of the program !");
-return 4;
-
-
