@@ -1,246 +1,304 @@
-#ifndef __PARSER_H
-#define __PARSER_H
+#ifndef __LEXER_H
+#define __LEXER_H
 
-#include "lexer.hpp"
+#include <unordered_map>
+#include <string>
 #include <vector>
+#include <sstream>
+#include <iostream>
+#include <algorithm>
 
-
-enum NODE_TYPE
+enum type 
 {
-    NODE_ROOT,
-    NODE_VARIABLE,
-    NODE_RETURN,
-    NODE_PRINT,
-    NODE_INT,
-    NODE_STRING
+    TOKEN_ID,
+    TOKEN_INT,
+    TOKEN_EQUALS,
+    TOKEN_SEMICOLON,
+    TOKEN_LEFT_PAREN,
+    TOKEN_RIGHT_PAREN,
+    TOKEN_KEYWORD,
+    TOKEN_STRING,
+    TOKEN_QUOTES,
+    TOKEN_EOF
 };
 
-std::string nodeToString(enum NODE_TYPE TYPE)
+struct Token
 {
-    switch (TYPE)
+    enum type TYPE;
+    std::string VALUE;
+};
+
+
+std::string typeToString(enum type TYPE)
+{
+    switch(TYPE)
     {
-        case NODE_ROOT : return "NODE_ROOT";
-        case NODE_VARIABLE : return "NODE_VARIABLE";
-        case NODE_RETURN : return "NODE_RETURN";
-        case NODE_PRINT : return "NODE_PRINT";
-        case NODE_INT : return "NODE_INT";
-        case NODE_STRING : return "NODE_STRING";
-        default : return "UNRECOGNIZED NODE";
-        
+        case TOKEN_ID : return "TOKEN_ID";
+        case TOKEN_INT : return "TOKEN_INT";
+        case TOKEN_EQUALS : return "TOKEN_EQUALS";
+        case TOKEN_SEMICOLON : return "TOKEN_SEMICOLON";
+        case TOKEN_LEFT_PAREN : return "TOKEN_LEFT_PAREN";
+        case TOKEN_RIGHT_PAREN : return "TOKEN_RIGHT_PAREN";
+        case TOKEN_KEYWORD : return "TOKEN_KEYWORD";
+        case TOKEN_STRING : return "TOKEN_STRING";
+        case TOKEN_QUOTES : return "TOKEN_QUOTES";
+        case TOKEN_EOF : return "TOKEN_EOF";
+        default : return "UNRECOGNIZED TOKEN";
     }
 }
 
-struct AST_NODE 
+class Lexer
 {
-    enum NODE_TYPE TYPE;
-    std::string * VALUE;
-    AST_NODE * CHILD;
-    std::vector <AST_NODE *> SUB_STATEMENTS; // THIS IS ONLY FOR THE ROOT NODE
-};
-
-class Parser{
     public:
-    Parser(std::vector <Token *> tokens)
+    Lexer(std::string sourceCode)
     {
-        parserTokens = tokens;
-        index = 0;
-        limit = parserTokens.size();
-        current = parserTokens.at(index);
+        source = sourceCode;
+        cursor = 0;
+        size = sourceCode.length();
+        current = sourceCode.at(cursor);
+        lineNumber = 1;
+        characterNumber = 1;
     }
-    Token * proceed (enum type TYPE) 
+
+    char advance () 
     {
-        if (current->TYPE != TYPE)
+
+        if (cursor < size)
         {
-            std::cout << "[!] SYNTAX ERROR " << std::endl;
-            exit(1);
+            char temp = current;
+            cursor++;
+            characterNumber++;
+            current = (cursor < size) ? source[cursor] : '\0';
+            return temp;
         }
-        else
-        {
-            index++;
-            current = parserTokens.at(index);
-            return current;
+        else{
+            return '\0';
         }
     }
-    AST_NODE * parseINT()
+
+    void skipNew()
     {
-        if (current->TYPE != TOKEN_INT)
-        {
-            std::cout << "[!] SYNTAX ERROR " << std::endl;
-                    exit(1);
+    	while(current == '\n')
+    	{
+    		lineNumber++;
+                characterNumber = 0;
+    		advance();
+    	}
+    }
+    
+    void checkAndSkip()
+    {
+        while (current == ' ' || current == '\t' || current == '\r')
+        { 
+            advance();
         }
-        AST_NODE * newNode = new AST_NODE();
-        newNode->TYPE = NODE_INT;
-        newNode->VALUE = &current->VALUE;
-        proceed(TOKEN_INT);
-        return newNode;
     }
 
-    AST_NODE * parseID_RHS()
+    std::vector <std::string> keywords = {"return" , "print"};
+
+    std::unordered_map <std::string , std::string> translatables = {
+    {"display" , "print"}
+    };
+
+    std::unordered_map <std::string , enum type> convertibles = {
+    	{"is" , TOKEN_EQUALS},
+    	
+    };
+
+    Token * tokenizeID_KEYWORD()
     {
-        std::string * buffer = &current->VALUE;
-        proceed(TOKEN_ID);
+      std::stringstream buffer;
+      buffer << advance(); 
 
-        AST_NODE * newNode = new AST_NODE();
+      while (isalnum(current) || current == '_')
+      {
+        buffer << advance();
+      }
 
-        newNode->VALUE = buffer;
-        newNode->TYPE = NODE_VARIABLE;
+      Token * newToken = new Token();
+      newToken->VALUE = buffer.str();
+      
+      if (translatables.find(newToken->VALUE) != translatables.end())
+      {
+      	      newToken->VALUE = translatables[newToken->VALUE];
+      }
+          
+      if (convertibles.find(newToken->VALUE) != convertibles.end())
+      {
+	      newToken->TYPE = convertibles[newToken->VALUE];  
+      }
+      else
+      {
+      newToken->TYPE = (std::find(keywords.begin() , keywords.end() , newToken->VALUE) != keywords.end()) ? TOKEN_KEYWORD : TOKEN_ID;
+      }
 
-        return newNode;
+      return newToken;
 
     }
-
-
-    AST_NODE * parseID()
+    Token * tokenizeSTRING()
     {
-        std::string * buffer = &current->VALUE;
-        proceed(TOKEN_ID);
-        proceed(TOKEN_EQUALS);
-
-        AST_NODE * newNode = new AST_NODE();
-        newNode->VALUE = buffer;
-        newNode->TYPE = NODE_VARIABLE;
-        
-        switch (current->TYPE)
+        std::stringstream buffer;
+        while (current != '"')
         {
-            case TOKEN_INT : {newNode->CHILD = parseINT(); break;}
-            case TOKEN_ID : {newNode->CHILD = parseID_RHS(); break;}
-
-            default : {
-                std::cout << "[!] SYNTAX ERROR : Unidentified Token : " << typeToString(current->TYPE) << std::endl;
+            if (current == '\0')
+            {
+                std::cout << "[!] Lexer Error : Missing Quotes";
                 exit(1);
             }
+            buffer << advance();
         }
 
-        return newNode;
+        Token * newToken = new Token();
+        newToken->TYPE = TOKEN_STRING;
+        newToken->VALUE = buffer.str();
+        
+        return newToken;
 
-    }
-
-
-    AST_NODE * parseRETURN()
+        }
+    Token * tokenizeSPECIAL(enum type TYPE)
     {
-        proceed(TOKEN_KEYWORD);
-        AST_NODE * newNode = new AST_NODE();
-        newNode->TYPE = NODE_RETURN;
-        newNode->CHILD = parseINT();
+        Token * newToken = new Token();
+        newToken->TYPE = TYPE;
+        newToken->VALUE = std::string(1 , advance());
 
-        return newNode;
+	if (newToken->VALUE == "\n")
+	{
+		newToken->VALUE = "\\n";
+	}
+
+        return newToken;
     }
-
-    AST_NODE * parseSTRING()
+    Token * tokenizeINT()
     {
-        if (current->TYPE != TOKEN_STRING)
+        std::stringstream buffer;
+        while (isdigit(current))
         {
-            std::cout << "[!] Parser Error : the print statement does not have a string linked to it";
-            exit(1);
+            buffer << advance();
         }
 
-        AST_NODE * newNode = new AST_NODE();
+        Token * newToken = new Token();
+        newToken->TYPE = TOKEN_INT;
+        newToken->VALUE = buffer.str();
 
-        newNode->TYPE = NODE_STRING;
-        newNode->VALUE = &current->VALUE;
-        
-        proceed(TOKEN_STRING);
-        return newNode;
+        return newToken;
     }
-    AST_NODE * parsePRINT() // current support is only for 32 bits numbers
+    std::vector<Token *> tokenize()
     {
-        proceed (TOKEN_KEYWORD);
-
-        proceed(TOKEN_LEFT_PAREN);
+        std::vector<Token *> tokens;
         
-        switch (current->TYPE)
+        bool notEOF = true;
+        bool newLine = true;
+        
+        while (cursor < size && notEOF)
         {
-            case TOKEN_INT :
-            {
-                AST_NODE * newNode = new AST_NODE();
-                newNode->TYPE = NODE_PRINT;
-                newNode->CHILD = parseINT();
-
-                proceed(TOKEN_RIGHT_PAREN);
-
-                return newNode;
-            }
             
-            case TOKEN_ID :
+            checkAndSkip();
+            if(isalpha(current) || current == '_') // this is the logic for ids
             {
-                AST_NODE * newNode = new AST_NODE();
-                newNode->TYPE = NODE_PRINT;
-                newNode->CHILD = parseID_RHS();
-
-                proceed(TOKEN_RIGHT_PAREN);
-
-                return newNode;
+                tokens.push_back(tokenizeID_KEYWORD());
+                newLine = false;
+                continue;
             }
-            case TOKEN_QUOTES :
+
+            if(isdigit (current)) // this is the logic for integer literals
             {
+                tokens.push_back(tokenizeINT());
+
+                continue;
+            }
+            switch(current)
+            {
+                case '\n' :
+                {
+                    if (newLine)
+                    {
+                    	skipNew();
+                    }
+                    else
+                    {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_SEMICOLON));
+                    lineNumber++;
+                    characterNumber = 0;
+		    newLine = true;
+		    }
+                    break;
+                }
+                case '=' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_EQUALS));
+
+                    break;
+                }
                 
-                proceed(TOKEN_QUOTES);
-        
-                AST_NODE * newNode = new AST_NODE();
-                newNode->TYPE = NODE_PRINT;
-                newNode->CHILD = parseSTRING();
+                case '"' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
+                    tokens.push_back(tokenizeSTRING());
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
 
-                proceed(TOKEN_QUOTES);
-                proceed(TOKEN_RIGHT_PAREN);
+                    break;
+                }
+                case '(' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_LEFT_PAREN));
 
-                return newNode;
-            }
-            default :
-            {
-                std::cout << "[!] Parser Error ! Unindentified token : " << typeToString(current->TYPE) << std::endl;
-                exit(1); 
-            }
-        }
-        
-        
-    }
-    AST_NODE * parseKEYWORD()
-    {
-        if (current->VALUE == "return")
-        {
-            return parseRETURN();
-        }
-        else if (current->VALUE == "print")
-        {
-            return parsePRINT();
-        }
-        else
-        {
-             std::cout << "[!] SYNTAX ERROR , UNDEFINED KEYWORD " << std::endl;
-                    exit(1);
-        }
-    }
-    AST_NODE * parse()
-    {
-        AST_NODE * ROOT = new AST_NODE();
-        ROOT->TYPE = NODE_ROOT;
-
-        while(current->TYPE != TOKEN_EOF)
-        {
-            switch (current->TYPE)
-            {
-                case TOKEN_ID : {ROOT->SUB_STATEMENTS.push_back(parseID()); break;}
-                case TOKEN_KEYWORD : {ROOT->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
-                default : {
-                    std::cout << "[!] SYNTAX ERROR " << std::endl;
+                    break;
+                }
+                case ')' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_RIGHT_PAREN));
+                 
+                    break;
+                }
+                case '~':
+                {
+                    while (current != '\n' &&  current != '\0')
+                    {
+                        advance();
+                    }
+                    break;
+                }
+                case 0 :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_EOF));
+                 
+                    break;
+                }
+                
+                default:
+                {
+                    std::cout << "[!] LEXER ERROR : Unidentified symbol " << current <<std::endl ;
+                    std::cout << "LINE NUMBER : " << lineNumber << " CHARACTER NUMBER : " << characterNumber <<std::endl; 
                     exit(1);
                 }
+                
+
+
             }
-            proceed(TOKEN_SEMICOLON);
         }
-
-        return ROOT;
-
+        return tokens;
     }
-    private:
-    int limit;
-    int index;
-    Token * current;
-    std::vector <Token *> parserTokens;
 
+    char peak (int offset = 0)
+    {
+        if (cursor + offset < size)
+        {
+            return source[cursor + offset];
+        }
+        else{
+            return '\0';
+        }
+    }
+
+    private:
+    std::string source;
+    int cursor;
+    int size;
+    char current;
+    int lineNumber;
+    int characterNumber;
+    bool newLine;
 
 };
-
-
 
 #endif
