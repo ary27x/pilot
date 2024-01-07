@@ -17,7 +17,7 @@ int main(int argc , char ** argv)
     }
     // pilot example.pi
 
-    std::cout << "COMPILING : " << argv[1] << std::endl;
+    std::cout << "[*] COMPILING : " << argv[1] << std::endl;
     std::ifstream sourceFileStream (argv[1]);
 
     std::stringstream buffer;
@@ -35,22 +35,23 @@ int main(int argc , char ** argv)
     Lexer lexer(sourceCode);
     std::vector <Token *> tokens = lexer.tokenize();
     int counter = 0;
-    std::cout << "[*] TOKENIZED SUCCESSFULLY!" << std::endl;
+   // std::cout << "[*] TOKENIZED SUCCESSFULLY!" << std::endl;
     if (tokens.back()->TYPE != TOKEN_EOF)
     {
         Token * EOFNode = new Token();
         EOFNode->TYPE = TOKEN_EOF;
         tokens.push_back(EOFNode);
     }
-    for(Token * temp : tokens)
-    {
-        counter++;
-      //  std::cout << counter << ") " << temp->VALUE << " " << typeToString(temp->TYPE) << std::endl;
-    }
+    //for(Token * temp : tokens)
+    //{
+    //   counter++;
+    //    std::cout << counter << ") " << temp->VALUE << " " << typeToString(temp->TYPE) << std::endl;
+    //}
 
     Parser parser(tokens);
     AST_NODE * ROOT = parser.parse();
-    std::cout << "[*] NO SYNTAX ERROR !" << std::endl;
+    std::cout << "[+] NO SYNTAX ERROR FOUND !" << std::endl;
+    std::cout << "[+] COMPILATION SUCCESSFUL !" << std::endl;
     //std::cout << "this is the number of statements " << ROOT->SUB_STATEMENTS.size() << std::endl;
     Generator generator(ROOT , argv[1]);
     generator.generate();
