@@ -1,5 +1,7 @@
 #ifndef __LEXER_H
 #define __LEXER_H
+
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -41,7 +43,7 @@ std::string typeToString(enum type TYPE)
         case TOKEN_STRING : return "TOKEN_STRING";
         case TOKEN_QUOTES : return "TOKEN_QUOTES";
         case TOKEN_EOF : return "TOKEN_EOF";
-        default : return "UNRECOGNIZED STRING";
+        default : return "UNRECOGNIZED TOKEN";
     }
 }
 
@@ -74,21 +76,35 @@ class Lexer
         }
     }
 
+    void skipNew()
+    {
+    	while(current == '\n')
+    	{
+    		lineNumber++;
+                characterNumber = 0;
+    		advance();
+    	}
+    }
+    
     void checkAndSkip()
     {
-        while (current == ' ' || current == '\n' || current == '\t' || current == '\r')
-        {
-            if (current == '\n')
-            {
-                lineNumber++;
-                characterNumber = 0;
-            }
-            
+        while (current == ' ' || current == '\t' || current == '\r')
+        { 
             advance();
         }
     }
 
     std::vector <std::string> keywords = {"return" , "print"};
+
+    std::unordered_map <std::string , std::string> translatables = {
+    {"display" , "print"}
+    };
+
+    std::unordered_map <std::string , enum type> convertibles = {
+    	{"is" , TOKEN_EQUALS},
+    	
+    };
+
     Token * tokenizeID_KEYWORD()
     {
       std::stringstream buffer;
@@ -100,8 +116,21 @@ class Lexer
       }
 
       Token * newToken = new Token();
-      newToken->TYPE = (std::find(keywords.begin() , keywords.end() , buffer.str()) != keywords.end()) ? TOKEN_KEYWORD : TOKEN_ID;
       newToken->VALUE = buffer.str();
+      
+      if (translatables.find(newToken->VALUE) != translatables.end())
+      {
+      	      newToken->VALUE = translatables[newToken->VALUE];
+      }
+          
+      if (convertibles.find(newToken->VALUE) != convertibles.end())
+      {
+	      newToken->TYPE = convertibles[newToken->VALUE];  
+      }
+      else
+      {
+      newToken->TYPE = (std::find(keywords.begin() , keywords.end() , newToken->VALUE) != keywords.end()) ? TOKEN_KEYWORD : TOKEN_ID;
+      }
 
       return newToken;
 
@@ -132,6 +161,11 @@ class Lexer
         newToken->TYPE = TYPE;
         newToken->VALUE = std::string(1 , advance());
 
+	if (newToken->VALUE == "\n")
+	{
+		newToken->VALUE = "\\n";
+	}
+
         return newToken;
     }
     Token * tokenizeINT()
@@ -153,6 +187,8 @@ class Lexer
         std::vector<Token *> tokens;
         
         bool notEOF = true;
+        bool newLine = true;
+        
         while (cursor < size && notEOF)
         {
             
@@ -160,6 +196,7 @@ class Lexer
             if(isalpha(current) || current == '_') // this is the logic for ids
             {
                 tokens.push_back(tokenizeID_KEYWORD());
+                newLine = false;
                 continue;
             }
 
@@ -171,10 +208,19 @@ class Lexer
             }
             switch(current)
             {
-                case ';' :
+                case '\n' :
                 {
+                    if (newLine)
+                    {
+                    	skipNew();
+                    }
+                    else
+                    {
                     tokens.push_back(tokenizeSPECIAL(TOKEN_SEMICOLON));
-
+                    lineNumber++;
+                    characterNumber = 0;
+		    newLine = true;
+		    }
                     break;
                 }
                 case '=' :
@@ -251,6 +297,7 @@ class Lexer
     char current;
     int lineNumber;
     int characterNumber;
+    bool newLine;
 
 };
 
