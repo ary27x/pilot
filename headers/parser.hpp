@@ -11,6 +11,7 @@ enum NODE_TYPE
     NODE_VARIABLE,
     NODE_RETURN,
     NODE_PRINT,
+    NODE_GET,
     NODE_INT,
     NODE_STRING
 };
@@ -23,6 +24,7 @@ std::string nodeToString(enum NODE_TYPE TYPE)
         case NODE_VARIABLE : return "NODE_VARIABLE";
         case NODE_RETURN : return "NODE_RETURN";
         case NODE_PRINT : return "NODE_PRINT";
+ 	case NODE_GET : return "NODE_GET";
         case NODE_INT : return "NODE_INT";
         case NODE_STRING : return "NODE_STRING";
         default : return "UNRECOGNIZED NODE";
@@ -143,6 +145,27 @@ class Parser{
         proceed(TOKEN_STRING);
         return newNode;
     }
+
+    AST_NODE * parseGET(bool recursiveCall = false)
+    {
+	if (!recursiveCall) proceed(TOKEN_KEYWORD);
+
+	AST_NODE * newNode = new AST_NODE();
+
+	newNode->TYPE = NODE_GET;
+	newNode->CHILD = parseID_RHS();
+
+
+	if (current->TYPE == TOKEN_COMMA)
+	{
+		  proceed(TOKEN_COMMA);
+		  newNode->SUB_STATEMENTS.push_back(parseGET(true));
+	}
+
+	return newNode;
+
+    }
+
     AST_NODE * parsePRINT(bool recursiveCall = false) // current support is only for 32 bits numbers
     {
     	if (!recursiveCall) proceed (TOKEN_KEYWORD);
@@ -210,6 +233,10 @@ class Parser{
         {
             return parsePRINT();
         }
+	else if (current->VALUE == "get")
+	{
+	    return parseGET();
+	}
         else
         {
              std::cout << "[!] SYNTAX ERROR , UNDEFINED KEYWORD " << std::endl;
