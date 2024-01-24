@@ -19,6 +19,7 @@ enum type
     TOKEN_KEYWORD,
     TOKEN_STRING,
     TOKEN_QUOTES,
+    TOKEN_COMMA,
     TOKEN_EOF
 };
 
@@ -42,7 +43,8 @@ std::string typeToString(enum type TYPE)
         case TOKEN_KEYWORD : return "TOKEN_KEYWORD";
         case TOKEN_STRING : return "TOKEN_STRING";
         case TOKEN_QUOTES : return "TOKEN_QUOTES";
-        case TOKEN_EOF : return "TOKEN_EOF";
+    	case TOKEN_COMMA : return "TOKEN_COMMA";
+    	case TOKEN_EOF : return "TOKEN_EOF";
         default : return "UNRECOGNIZED TOKEN";
     }
 }
@@ -94,7 +96,7 @@ class Lexer
         }
     }
 
-    std::vector <std::string> keywords = {"return" , "print"};
+    std::vector <std::string> keywords = {"return" , "print" , "get"};
 
     std::unordered_map <std::string , std::string> translatables = {
     {"display" , "print"}
@@ -223,11 +225,17 @@ class Lexer
 		    }
                     break;
                 }
+		case ',' :
+		{
+		    tokens.push_back(tokenizeSPECIAL(TOKEN_COMMA));
+		
+		    break;
+		}
                 case '=' :
                 {
                     tokens.push_back(tokenizeSPECIAL(TOKEN_EQUALS));
-
-                    break;
+                
+		    break;
                 }
                 
                 case '"' :
@@ -235,19 +243,18 @@ class Lexer
                     tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
                     tokens.push_back(tokenizeSTRING());
                     tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
-
-                    break;
+                
+		    break;
                 }
                 case '(' :
                 {
                     tokens.push_back(tokenizeSPECIAL(TOKEN_LEFT_PAREN));
-
                     break;
                 }
                 case ')' :
                 {
                     tokens.push_back(tokenizeSPECIAL(TOKEN_RIGHT_PAREN));
-                 
+                
                     break;
                 }
                 case '~':
