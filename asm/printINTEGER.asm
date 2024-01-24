@@ -17,6 +17,14 @@ mov rbx , 10 ; we will be using the 10
 
 mov rdx , 0 ; we are setting up the counter
 
+; we do the first iteration of the loop manually , so 
+; as to we could also print the number : 0
+call _mod
+push rcx
+add rdx , 1
+call _div
+mov rax , rcx
+
 _primaryLoop:
 cmp rax , 0
 je _loopCallRAX 
@@ -29,6 +37,7 @@ add rdx , 1
 call _div ; the floor divison of rax // rbx should now be in rcx
 mov rax , rcx ; we update the rax with the new value
 jmp _primaryLoop ; looping back 
+
 
 
 _loopCallRAX:
