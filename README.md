@@ -10,7 +10,7 @@ DEPENDENCIES :
 
 HOW TO USE:
 
-1) GENERATE THE PILOT COMPILER :      g++ pilot.cpp -o pilot (OR YOU COULD USE THE ALREADY COMPILED ./pilot)
+1) GENERATE THE PILOT COMPILER :      g++ pilot.cpp -o pilot 
 2) CREATE YOUR .PI FILE :             <your_file_name>.pi
 3) RUN :                             ./pilot <your_file_name>.pi
 4) RUN :                             ./<your_file_name>
