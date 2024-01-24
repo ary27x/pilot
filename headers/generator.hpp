@@ -68,6 +68,33 @@ class Generator{
 
     }
 
+    void generateGET(AST_NODE * STATEMENT)
+    {
+       if (!STATEMENT->CHILD->VALUE || STATEMENT->CHILD->TYPE != NODE_VARIABLE)
+       {
+	       std::cout << "[!] Generation Error : the get statement has a missing/broken linkage ! " << std::endl;
+	       exit(1);
+       }
+       AST_NODE * VAR_ID = STATEMENT->CHILD;
+       int offset;
+       int elemOffset = variableReferenceExists(VAR_ID->VALUE);
+       if (elemOffset == -1)
+       {
+	   std::string _INPUT = "INPUT";
+           variableReferences[*VAR_ID->VALUE] = &_INPUT;
+           sectionText << "sub rsp , 4\n";
+           elemOffset = 0;
+           offsetCounter++;
+       }
+
+       offset = (offsetCounter - elemOffset) * 4;
+       sectionText << "call _readINTEGER";
+       sectionText << "\nmov dword [rbp - " << std::to_string(offset) << " ] , eax\n";
+
+       if (STATEMENT->SUB_STATEMENTS.size() != 0)
+		generateGET(STATEMENT->SUB_STATEMENTS[0]);
+    }
+
     void generatePRINT(AST_NODE * STATEMENT , bool recursiveCall = false)
     {
         if (!STATEMENT->CHILD->VALUE)
@@ -209,7 +236,8 @@ class Generator{
     {
         stringReferenceCounter = 0;
         offsetCounter = 0;
-        includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; // inclusion has to be done ~
+        includes << "\%include \"asm/readINTEGER.asm\" \n";
+	includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; // inclusion has to be done ~
         // ~ in a better way , that is , the file is included only when required 
         sectionData << "section .data\n\n";
         sectionText << "section .text\n\nglobal _start\n_start:\n\npush rbp\nmov rbp , rsp\n\n";
@@ -220,6 +248,7 @@ class Generator{
             {
                 case NODE_RETURN : {returnStream << generateRETURN(CURRENT); break;}
                 case NODE_PRINT : {generatePRINT(CURRENT); break;}
+		case NODE_GET : {generateGET(CURRENT); break;}
                 case NODE_VARIABLE : {generateVARIABLE(CURRENT); break;}
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CURRENT->TYPE); break;}
             }
