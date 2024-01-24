@@ -34,7 +34,7 @@ int main(int argc , char ** argv)
     sourceCode.append("\0");
     Lexer lexer(sourceCode);
     std::vector <Token *> tokens = lexer.tokenize();
-    int counter = 0;
+   // int counter = 0;
    // std::cout << "[*] TOKENIZED SUCCESSFULLY!" << std::endl;
     if (tokens.back()->TYPE != TOKEN_EOF)
     {
@@ -42,25 +42,25 @@ int main(int argc , char ** argv)
         EOFNode->TYPE = TOKEN_EOF;
         tokens.push_back(EOFNode);
     }
-    //for(Token * temp : tokens)
+    //for (Token * temp : tokens)
     //{
-    //   counter++;
-    //    std::cout << counter << ") " << temp->VALUE << " " << typeToString(temp->TYPE) << std::endl;
+    //    counter++;
+    //	    std::cout << counter << ") " << temp->VALUE << " " << typeToString(temp->TYPE) << std::endl;
     //}
 
     Parser parser(tokens);
     AST_NODE * ROOT = parser.parse();
-    std::cout << "[+] NO SYNTAX ERROR FOUND !" << std::endl;
-    std::cout << "[+] COMPILATION SUCCESSFUL !" << std::endl;
-    //std::cout << "this is the number of statements " << ROOT->SUB_STATEMENTS.size() << std::endl;
+   
     Generator generator(ROOT , argv[1]);
     generator.generate();
-
+    
     std::string filenameWithoutExtension = argv[1];
     filenameWithoutExtension.pop_back();
     filenameWithoutExtension.pop_back();
     filenameWithoutExtension.pop_back();
     
+    std::cout << "[+] COMPILATION SUCCESSFUL " << std::endl;
+    std::cout << "[+] FILE READY : ./" << filenameWithoutExtension << std::endl; 
 
     std::stringstream assemblerInstruction;
     assemblerInstruction << "nasm -f elf64 " + filenameWithoutExtension + ".pi.asm";
