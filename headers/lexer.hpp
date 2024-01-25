@@ -99,7 +99,9 @@ class Lexer
     std::vector <std::string> keywords = {"return" , "print" , "get"};
 
     std::unordered_map <std::string , std::string> translatables = {
-    {"display" , "print"}
+    {"display" , "print"},
+    {"response" , "print"},
+    {"request" , "get"}
     };
 
     std::unordered_map <std::string , enum type> convertibles = {
