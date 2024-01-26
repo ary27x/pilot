@@ -20,6 +20,13 @@ enum type
     TOKEN_STRING,
     TOKEN_QUOTES,
     TOKEN_COMMA,
+    TOKEN_REL_EQUALS,
+    TOKEN_REL_NOTEQUALS,
+    TOKEN_REL_LESSTHAN,
+    TOKEN_REL_LESSTHANEQUALS,
+    TOKEN_REL_GREATERTHAN,
+    TOKEN_REL_GREATERTHANEQUALS,
+    TOKEN_INDENT,
     TOKEN_EOF
 };
 
@@ -44,6 +51,13 @@ std::string typeToString(enum type TYPE)
         case TOKEN_STRING : return "TOKEN_STRING";
         case TOKEN_QUOTES : return "TOKEN_QUOTES";
     	case TOKEN_COMMA : return "TOKEN_COMMA";
+	    case TOKEN_REL_EQUALS : return "TOKEN_REL_EQUALS";
+	    case TOKEN_REL_NOTEQUALS : return "TOKEN_REL_NOTEQUALS";				   
+	    case TOKEN_REL_LESSTHAN : return "TOKEN_REL_LESSTHAN";
+	    case TOKEN_REL_LESSTHANEQUALS : return "TOKEN_REL_LESSTHANEQUALS";
+	    case TOKEN_REL_GREATERTHAN : return "TOKEN_REL_GREATERTHAN";
+        case TOKEN_REL_GREATERTHANEQUALS : return "TOKEN_REL_GREATERTHANEQUALS";	
+        case TOKEN_INDENT : return "TOKEN_INDENT";
     	case TOKEN_EOF : return "TOKEN_EOF";
         default : return "UNRECOGNIZED TOKEN";
     }
@@ -61,10 +75,19 @@ class Lexer
         lineNumber = 1;
         characterNumber = 1;
     }
+    
+    char seek (int offset)
+    {
+	if (cursor + offset >= size)
+		return 0;
+	else
+	{
+	   return source[cursor + offset];
+	}
+    }
 
     char advance () 
     {
-
         if (cursor < size)
         {
             char temp = current;
@@ -96,12 +119,10 @@ class Lexer
         }
     }
 
-    std::vector <std::string> keywords = {"return" , "print" , "get"};
+    std::vector <std::string> keywords = {"return" , "print" , "get","if" , "else"};
 
     std::unordered_map <std::string , std::string> translatables = {
-    {"display" , "print"},
-    {"response" , "print"},
-    {"request" , "get"}
+    {"display" , "print"}
     };
 
     std::unordered_map <std::string , enum type> convertibles = {
@@ -139,6 +160,7 @@ class Lexer
       return newToken;
 
     }
+
     Token * tokenizeSTRING()
     {
         std::stringstream buffer;
@@ -159,6 +181,7 @@ class Lexer
         return newToken;
 
         }
+
     Token * tokenizeSPECIAL(enum type TYPE)
     {
         Token * newToken = new Token();
@@ -171,6 +194,14 @@ class Lexer
 	}
 
         return newToken;
+    }
+    Token * tokenizeSEMICOLON (int scope)
+    {
+	Token * newToken = new Token();
+	newToken->TYPE = TOKEN_SEMICOLON;
+	newToken->VALUE = std::to_string(scope);
+
+	return newToken;
     }
     Token * tokenizeINT()
     {
@@ -192,6 +223,7 @@ class Lexer
         
         bool notEOF = true;
         bool newLine = true;
+	    int scopeCounter;
         
         while (cursor < size && notEOF)
         {
@@ -220,25 +252,100 @@ class Lexer
                     }
                     else
                     {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_SEMICOLON));
+		            advance();
+		            scopeCounter = 0;
+		            // we have to make some changes here , such that 
+        		    // the scoping indentation would also support tabs
+	        	    // tldr , we need to find the whitespace equivalent of tabs
+                    // or convert the entire thing to a string
+		    
+		            while (current == '\n' || current == ' ')
+		            {
+			            if (current == '\n')
+				            scopeCounter = 0;
+		                else 
+				            scopeCounter++;
+			            advance();
+		            }
+			    
+
+                    tokens.push_back(tokenizeSEMICOLON(scopeCounter));
                     lineNumber++;
                     characterNumber = 0;
-		    newLine = true;
-		    }
+		            newLine = true;
+		            }
+
                     break;
                 }
-		case ',' :
-		{
-		    tokens.push_back(tokenizeSPECIAL(TOKEN_COMMA));
+		        case ',' :
+		        {
+		            tokens.push_back(tokenizeSPECIAL(TOKEN_COMMA));
 		
-		    break;
-		}
+		            break;
+		        }
                 case '=' :
                 {
+		            if (seek(1) == '=')
+                    {
+			            advance();
+			            tokens.push_back(tokenizeSPECIAL(TOKEN_REL_EQUALS));
+			        }
+		            else
                     tokens.push_back(tokenizeSPECIAL(TOKEN_EQUALS));
                 
-		    break;
+		            break;
                 }
+
+		        case '!' :
+		        {
+			        if (seek(1) == '=')
+			        {
+			        advance();
+			        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_NOTEQUALS));
+			        break;
+			        }
+			        std::cout << "[!] Syntax Error : unexpected symbol : " << seek(1) << " expected  : = " << std::endl;
+			        exit(1);
+
+		        }
+
+		        case '<':
+		        {
+			        if (seek(1) == '=')
+			        {
+				        advance();
+				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_LESSTHANEQUALS));
+				        break;
+			        }
+			        else 
+			        {
+				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_LESSTHAN));
+				        break;
+			        }
+		        }
+		
+		        case '>':
+		        {
+			        if (seek(1) == '=')
+			        {
+				        advance();
+				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_GREATERTHANEQUALS));
+				        break;
+			        }
+			        else
+			        {
+				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_GREATERTHAN));
+				        break;
+			        }
+		        }       
+
+		        case ':' :
+		        {
+
+			        tokens.push_back(tokenizeSPECIAL(TOKEN_INDENT));
+			
+        			break;
+		        }
                 
                 case '"' :
                 {
@@ -246,9 +353,10 @@ class Lexer
                     tokens.push_back(tokenizeSTRING());
                     tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
                 
-		    break;
+		        break;
                 }
-                case '(' :
+                
+	            case '(' :
                 {
                     tokens.push_back(tokenizeSPECIAL(TOKEN_LEFT_PAREN));
                     break;
