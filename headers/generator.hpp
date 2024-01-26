@@ -15,7 +15,15 @@ class Generator{
         assemblyFile.open(filename + ".asm");
         
     }
-    
+    std::unordered_map <enum NODE_TYPE , std::string> relationalReferences
+    {
+    	  {NODE_REL_EQUALS , "je"},
+    	  {NODE_REL_NOTEQUALS , "jne"},
+    	  {NODE_REL_LESSTHAN, "jl"}, 
+    	  {NODE_REL_LESSTHANEQUALS, "jle"},
+          {NODE_REL_GREATERTHAN, "jg"},
+          {NODE_REL_GREATERTHANEQUALS, "jge"}
+    };
     void writeSections()
     {
         assemblyFile << includes.str();
@@ -75,12 +83,14 @@ class Generator{
 	       std::cout << "[!] Generation Error : the get statement has a missing/broken linkage ! " << std::endl;
 	       exit(1);
        }
+
        AST_NODE * VAR_ID = STATEMENT->CHILD;
        int offset;
        int elemOffset = variableReferenceExists(VAR_ID->VALUE);
+
        if (elemOffset == -1)
        {
-	   std::string _INPUT = "INPUT";
+	       std::string _INPUT = "INPUT";
            variableReferences[*VAR_ID->VALUE] = &_INPUT;
            sectionText << "sub rsp , 4\n";
            elemOffset = 0;
@@ -151,6 +161,7 @@ class Generator{
 
                 break;
             }
+            
             default : 
             {
                 std::cout << "[!] Generation Error : Unidentified linkage to print " << nodeToString(STATEMENT->CHILD->TYPE) << std::endl;
@@ -178,6 +189,75 @@ class Generator{
             counter++;
         }
         return -1;
+    }
+    
+    
+    void generateIF(AST_NODE * STATEMENT)
+    {
+        AST_NODE * BUFFERPOINTER;
+        std::string registerPlaceHolder;
+        sectionText << "\n";
+        for (int itr = 0 ; itr <= 2 ; itr++)
+        {
+            if (itr == 1) continue;
+
+            registerPlaceHolder = (itr == 0) ? "mov eax , " : "mov ebx , ";
+            BUFFERPOINTER = STATEMENT->CHILD->SUB_STATEMENTS[itr];
+            
+            switch (BUFFERPOINTER->TYPE)
+            {
+                case NODE_INT  : {sectionText << registerPlaceHolder << *BUFFERPOINTER->VALUE << "\n"; break;}
+                case NODE_VARIABLE : 
+                {
+                    int offset;
+                    int elemOffset = variableReferenceExists(BUFFERPOINTER->VALUE);
+                    if (elemOffset == -1)
+                    {
+                        std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *BUFFERPOINTER->VALUE << std::endl;
+                        exit(1);
+                    }
+
+                    offset = (offsetCounter - elemOffset) * 4; 
+                    sectionText << registerPlaceHolder << "dword [rbp - " << std::to_string(offset);
+                    sectionText << "]\n";    
+                }
+            }
+        }
+
+        sectionText << "cmp eax , ebx \n";
+       
+        BUFFERPOINTER = STATEMENT->CHILD->SUB_STATEMENTS[1];
+       
+        sectionText << relationalReferences[BUFFERPOINTER->TYPE] << " _BRANCH_" << std::to_string(branchCounter) <<"_IF\n";
+
+       // we need to create the else label here
+
+        sectionText << "jmp _BRANCH_" << std::to_string(branchCounter) <<"_EXIT\n\n";
+       
+       sectionText << "_BRANCH_" << std::to_string(branchCounter) <<"_IF:\n";
+
+       int branchCounterCopy = branchCounter;
+       if (STATEMENT->SUB_STATEMENTS.size() == 0)
+       {
+	       std::cout << "[!] Linkage Error : IF has no statements linked to it" << std::endl;
+       }
+       branchCounter++; 
+      
+       for (AST_NODE * CHILD_STATEMENT : STATEMENT->SUB_STATEMENTS)
+       {
+	    switch(CHILD_STATEMENT->TYPE)
+            {
+                case NODE_PRINT : {generatePRINT(CHILD_STATEMENT); break;}
+		        case NODE_GET : {generateGET(CHILD_STATEMENT); break;}
+                case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
+                case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
+                default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
+            }
+       }
+     
+       sectionText << "jmp _BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT\n";     
+       sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT:\n\n";
+       
     }
 
     void generateVARIABLE(AST_NODE * VAR_ID)
@@ -236,9 +316,9 @@ class Generator{
     {
         stringReferenceCounter = 0;
         offsetCounter = 0;
+        branchCounter = 0;
         includes << "\%include \"asm/readINTEGER.asm\" \n";
-	includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; // inclusion has to be done ~
-        // ~ in a better way , that is , the file is included only when required 
+	    includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; 
         sectionData << "section .data\n\n";
         sectionText << "section .text\n\nglobal _start\n_start:\n\npush rbp\nmov rbp , rsp\n\n";
         
@@ -248,11 +328,13 @@ class Generator{
             {
                 case NODE_RETURN : {returnStream << generateRETURN(CURRENT); break;}
                 case NODE_PRINT : {generatePRINT(CURRENT); break;}
-		case NODE_GET : {generateGET(CURRENT); break;}
+		        case NODE_GET : {generateGET(CURRENT); break;}
                 case NODE_VARIABLE : {generateVARIABLE(CURRENT); break;}
+                case NODE_IF : {generateIF(CURRENT); break;                }
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CURRENT->TYPE); break;}
             }
         }
+
         stackReset << "\nadd rsp , " + std::to_string(offsetCounter * 4);
         stackReset << "\nmov rsp , rbp\n";
         stackReset << "pop rbp\n\n";
@@ -267,6 +349,7 @@ class Generator{
     std::stringstream stackReset;
     std::stringstream returnStream;
     int stringReferenceCounter;
+    int branchCounter; 
     std::vector <std::string *> stringReferences;
     std::unordered_map<std::string  , std::string * > variableReferences;
     int offsetCounter;
