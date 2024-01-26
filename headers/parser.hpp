@@ -3,6 +3,7 @@
 
 #include "lexer.hpp"
 #include <vector>
+#include <stack>
 
 
 enum NODE_TYPE
@@ -13,7 +14,16 @@ enum NODE_TYPE
     NODE_PRINT,
     NODE_GET,
     NODE_INT,
-    NODE_STRING
+    NODE_STRING,
+    NODE_IF, 
+    NODE_CONDITION,
+    NODE_REL_EQUALS,
+    NODE_REL_NOTEQUALS, 
+    NODE_REL_LESSTHAN, 
+    NODE_REL_LESSTHANEQUALS,
+    NODE_REL_GREATERTHAN,
+    NODE_REL_GREATERTHANEQUALS,
+
 };
 
 std::string nodeToString(enum NODE_TYPE TYPE)
@@ -27,7 +37,15 @@ std::string nodeToString(enum NODE_TYPE TYPE)
  	case NODE_GET : return "NODE_GET";
         case NODE_INT : return "NODE_INT";
         case NODE_STRING : return "NODE_STRING";
-        default : return "UNRECOGNIZED NODE";
+	case NODE_IF : return "NODE_IF";
+	case NODE_CONDITION : return "NODE_CONDITION";		       
+        case NODE_REL_EQUALS : return "NODE_REL_EQUALS";
+	case NODE_REL_NOTEQUALS :  return "NODE_REL_NOTEQUALS";
+        case NODE_REL_LESSTHAN : return "NODE_REL_LESSTHAN";
+	case NODE_REL_LESSTHANEQUALS : return "NODE_REL_LESSTHANEQUALS";
+    	case NODE_REL_GREATERTHAN : return "NODE_REL_GREATERTHAN";
+	case NODE_REL_GREATERTHANEQUALS : return "NODE_REL_GREATERTHANEQUALS";
+    	default : return "UNRECOGNIZED NODE";
         
     }
 }
@@ -42,6 +60,8 @@ struct AST_NODE
 
 class Parser{
     public:
+    
+    
     Parser(std::vector <Token *> tokens)
     {
         parserTokens = tokens;
@@ -166,6 +186,89 @@ class Parser{
 
     }
 
+    AST_NODE * parseCONDITION()
+    {
+	    AST_NODE * newNODE = new AST_NODE();
+	    newNODE->TYPE = NODE_CONDITION;
+	    
+
+	    
+      switch(current->TYPE)
+      {
+	      case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back(parseID_RHS()); break;}
+	      case TOKEN_INT : {newNODE->SUB_STATEMENTS.push_back(parseINT()); break;}
+	      default : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}
+			       
+			       
+      }
+      
+      AST_NODE * operatorNODE = new AST_NODE();
+      
+      switch(current->TYPE)
+      {
+      	case TOKEN_REL_EQUALS : {operatorNODE->TYPE = NODE_REL_EQUALS; proceed(TOKEN_REL_EQUALS); break;}
+	    case TOKEN_REL_NOTEQUALS : {operatorNODE->TYPE= NODE_REL_NOTEQUALS ; proceed(TOKEN_REL_NOTEQUALS);  break;}				   
+	    case TOKEN_REL_LESSTHAN : {operatorNODE->TYPE = NODE_REL_LESSTHAN; proceed(TOKEN_REL_LESSTHAN); break;}
+	    case TOKEN_REL_LESSTHANEQUALS : {operatorNODE->TYPE = NODE_REL_LESSTHANEQUALS; proceed(TOKEN_REL_LESSTHANEQUALS); break;}
+	    case TOKEN_REL_GREATERTHAN : {operatorNODE->TYPE = NODE_REL_GREATERTHAN; proceed(TOKEN_REL_GREATERTHAN); break;}
+        case TOKEN_REL_GREATERTHANEQUALS : {operatorNODE->TYPE = NODE_REL_GREATERTHANEQUALS; proceed(TOKEN_REL_GREATERTHANEQUALS); break;}
+      	default : {std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << " Expected a relational operator " << std::endl; exit(1);}
+      }
+
+      newNODE->SUB_STATEMENTS.push_back(operatorNODE);
+
+      switch(current->TYPE)
+      {
+	      case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back(parseID_RHS()); break;}
+	      case TOKEN_INT : {newNODE->SUB_STATEMENTS.push_back(parseINT()); break;}
+	      default : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}    	       
+      }
+        
+      return newNODE;
+      
+    }
+
+    AST_NODE * parseIF()
+    {	
+	proceed(TOKEN_KEYWORD);
+	
+	AST_NODE * newNODE = new AST_NODE();
+	newNODE->TYPE = NODE_IF;
+	newNODE->CHILD = parseCONDITION();
+
+	proceed(TOKEN_INDENT);
+	if (current->TYPE != TOKEN_SEMICOLON)
+	{
+		std::cout << "[!] Syntax Error " << std::endl;
+		exit(1);
+	}
+	bufferScope = stoi (current->VALUE);
+	if (bufferScope <= scopeLog.top())
+	{
+		std::cout << "[!] Indentation Error : Expected further indent after the if statement " << std::endl;
+		exit(1);
+	}
+	scopeLog.push(bufferScope);
+	while (std::stoi(current->VALUE) == scopeLog.top())
+	{
+		
+        proceed(TOKEN_SEMICOLON);
+	    switch (current->TYPE)
+            {
+                case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_KEYWORD : {newNODE->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+                default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
+            }
+
+        if (current->TYPE != TOKEN_SEMICOLON)
+            { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1); }
+    }
+
+	
+	scopeLog.pop();
+	return newNODE;
+    }
+
     AST_NODE * parsePRINT(bool recursiveCall = false) // current support is only for 32 bits numbers
     {
     	if (!recursiveCall) proceed (TOKEN_KEYWORD);
@@ -233,20 +336,23 @@ class Parser{
         {
             return parsePRINT();
         }
-	else if (current->VALUE == "get")
-	{
-	    return parseGET();
-	}
-        else
-        {
-             std::cout << "[!] SYNTAX ERROR , UNDEFINED KEYWORD " << std::endl;
-                    exit(1);
-        }
+	    else if (current->VALUE == "get")
+	    {   
+	        return parseGET();
+	    }
+	    else if (current->VALUE == "if")
+	    {
+        	return parseIF();
+	    }
+        else { std::cout << "[!] SYNTAX ERROR , UNDEFINED KEYWORD " << std::endl; exit(1); }
     }
+
     AST_NODE * parse()
     {
         AST_NODE * ROOT = new AST_NODE();
         ROOT->TYPE = NODE_ROOT;
+	    scopeLog.push(0);
+	
 
         while(current->TYPE != TOKEN_EOF)
         {
@@ -254,24 +360,29 @@ class Parser{
             {
                 case TOKEN_ID : {ROOT->SUB_STATEMENTS.push_back(parseID()); break;}
                 case TOKEN_KEYWORD : {ROOT->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
-                default : {
-                    std::cout << "[!] SYNTAX ERROR " << std::endl;
-                    exit(1);
-                }
+                default : { std::cout << "[!] SYNTAX ERROR " << std::endl; exit(1);}
             }
+            
+	        bufferScope = std::stoi(current->VALUE);
             proceed(TOKEN_SEMICOLON);
+
+	        if (bufferScope != scopeLog.top())
+	        { std::cout << "[!] Indentation Error : Inconsistent indent level 1" << std::endl; exit(1);  }
         }
 
         return ROOT;
 
     }
     private:
+    
     int limit;
     int index;
+    int bufferScope;
     Token * current;
     std::vector <Token *> parserTokens;
+    std::stack<int> scopeLog;
 
-
+    
 };
 
 
