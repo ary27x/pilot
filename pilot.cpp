@@ -30,23 +30,24 @@ int main(int argc , char ** argv)
     }
 
     std::string sourceCode = buffer.str();
-    //std::cout << "This is the source code  : " << std::endl << std::endl << sourceCode << std::endl;
     sourceCode.append("\0");
+
     Lexer lexer(sourceCode);
     std::vector <Token *> tokens = lexer.tokenize();
-   // int counter = 0;
-   // std::cout << "[*] TOKENIZED SUCCESSFULLY!" << std::endl;
+    int counter = 0;
     if (tokens.back()->TYPE != TOKEN_EOF)
     {
         Token * EOFNode = new Token();
         EOFNode->TYPE = TOKEN_EOF;
         tokens.push_back(EOFNode);
     }
-    //for (Token * temp : tokens)
-    //{
-    //    counter++;
-    //	    std::cout << counter << ") " << temp->VALUE << " " << typeToString(temp->TYPE) << std::endl;
-    //}
+
+    // for (Token * temp : tokens)
+    // {
+    //     counter++;
+    // 	    std::cout << counter << ") " << temp->VALUE << " " << typeToString(temp->TYPE) << std::endl;
+    // }
+    // exit(0);
 
     Parser parser(tokens);
     AST_NODE * ROOT = parser.parse();
@@ -59,7 +60,7 @@ int main(int argc , char ** argv)
     filenameWithoutExtension.pop_back();
     filenameWithoutExtension.pop_back();
     
-    std::cout << "[+] COMPILATION SUCCESSFUL " << std::endl;
+    std::cout << "[!] COMPILATION SUCCESSFUL " << std::endl;
     std::cout << "[+] FILE READY : ./" << filenameWithoutExtension << std::endl; 
 
     std::stringstream assemblerInstruction;
@@ -71,8 +72,6 @@ int main(int argc , char ** argv)
     linkerInstruction << "ld -o " + filenameWithoutExtension + " " + filenameWithoutExtension + ".pi.o";
     
     system(linkerInstruction.str().c_str());
-
-    //std::cout << std::endl << "END " << std::endl;
 
     return 0;
 }
