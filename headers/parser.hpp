@@ -16,6 +16,7 @@ enum NODE_TYPE
     NODE_INT,
     NODE_STRING,
     NODE_IF, 
+    NODE_ELSE,
     NODE_CONDITION,
     NODE_REL_EQUALS,
     NODE_REL_NOTEQUALS, 
@@ -38,6 +39,7 @@ std::string nodeToString(enum NODE_TYPE TYPE)
         case NODE_INT : return "NODE_INT";
         case NODE_STRING : return "NODE_STRING";
 	case NODE_IF : return "NODE_IF";
+	case NODE_ELSE : return "NODE_ELSE";
 	case NODE_CONDITION : return "NODE_CONDITION";		       
         case NODE_REL_EQUALS : return "NODE_REL_EQUALS";
 	case NODE_REL_NOTEQUALS :  return "NODE_REL_NOTEQUALS";
@@ -56,6 +58,7 @@ struct AST_NODE
     std::string * VALUE;
     AST_NODE * CHILD;
     std::vector <AST_NODE *> SUB_STATEMENTS; // THIS IS ONLY FOR THE ROOT NODE
+    AST_NODE * SUPPLEMENT; // THIS IS FOR TEMPORARY MEASURES				     
 };
 
 class Parser{
@@ -69,6 +72,15 @@ class Parser{
         limit = parserTokens.size();
         current = parserTokens.at(index);
     }
+
+    Token * tokenSeek (int offset)
+    {
+	if (index + offset < limit)
+		return parserTokens.at(index+offset);
+	else
+		return parserTokens.at(limit-1); // we would be returning an eof token 
+    }
+
     Token * proceed (enum type TYPE) 
     {
         if (current->TYPE != TYPE)
@@ -242,6 +254,7 @@ class Parser{
 		std::cout << "[!] Syntax Error " << std::endl;
 		exit(1);
 	}
+	
 	bufferScope = stoi (current->VALUE);
 	if (bufferScope <= scopeLog.top())
 	{
@@ -263,11 +276,62 @@ class Parser{
         if (current->TYPE != TOKEN_SEMICOLON)
             { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1); }
     }
-
-	
 	scopeLog.pop();
+	if (std::stoi(current->VALUE) == scopeLog.top() && tokenSeek(1)->VALUE == "else")
+	{
+		proceed(TOKEN_SEMICOLON);
+		newNODE->SUPPLEMENT = parseELSE();
+
+	}	
+	
 	return newNODE;
     }
+
+    AST_NODE * parseELSE()
+    {
+    	proceed(TOKEN_KEYWORD);
+	
+	AST_NODE * newNODE = new AST_NODE();
+	newNODE->TYPE = NODE_ELSE;
+	
+
+	proceed(TOKEN_INDENT);
+	if (current->TYPE != TOKEN_SEMICOLON)
+	{
+		std::cout << "[!] Syntax Error " << std::endl;
+		exit(1);
+	}
+	
+	////////////
+	
+	
+	bufferScope = stoi (current->VALUE);
+	if (bufferScope <= scopeLog.top())
+	{
+		std::cout << "[!] Indentation Error : Expected further indent after the else statement " << std::endl;
+		exit(1);
+	}
+	scopeLog.push(bufferScope);
+	while (std::stoi(current->VALUE) == scopeLog.top())
+	{
+		
+        proceed(TOKEN_SEMICOLON);
+	    switch (current->TYPE)
+            {
+                case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_KEYWORD : {newNODE->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+                default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
+            }
+
+        if (current->TYPE != TOKEN_SEMICOLON)
+            { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1); }
+    	}
+	scopeLog.pop();
+		
+	
+	return newNODE;
+    }
+
 
     AST_NODE * parsePRINT(bool recursiveCall = false) // current support is only for 32 bits numbers
     {
