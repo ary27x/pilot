@@ -232,14 +232,14 @@ class Generator{
 
        // we need to create the else label here
 
-        sectionText << "jmp _BRANCH_" << std::to_string(branchCounter) <<"_EXIT\n\n";
+        sectionText << "jmp _BRANCH_" << std::to_string(branchCounter) <<"_ELSE\n\n";
        
        sectionText << "_BRANCH_" << std::to_string(branchCounter) <<"_IF:\n";
 
        int branchCounterCopy = branchCounter;
        if (STATEMENT->SUB_STATEMENTS.size() == 0)
        {
-	       std::cout << "[!] Linkage Error : IF has no statements linked to it" << std::endl;
+	       std::cout << "[!] Linkage Error : IF has no statements linked to it" << std::endl; exit(1);
        }
        branchCounter++; 
       
@@ -254,11 +254,42 @@ class Generator{
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
             }
        }
+       
      
        sectionText << "jmp _BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT\n";     
-       sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT:\n\n";
+       
+       sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_ELSE:\n";
+       
+       if (STATEMENT->SUPPLEMENT)
+         generateELSE(STATEMENT->SUPPLEMENT);
+       
+       sectionText << "jmp _BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT\n\n";     
+       
+       sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT:\n";
+       
        
     }
+
+    void generateELSE (AST_NODE * STATEMENT)
+    {
+       if (STATEMENT->SUB_STATEMENTS.size() == 0)
+       { std::cout << "[!] Linkage Error : ELSE has no statements linked to it" << std::endl; exit(1); }
+       
+      
+       for (AST_NODE * CHILD_STATEMENT : STATEMENT->SUB_STATEMENTS)
+       {
+	    switch(CHILD_STATEMENT->TYPE)
+            {
+                case NODE_PRINT : {generatePRINT(CHILD_STATEMENT); break;}
+		case NODE_GET : {generateGET(CHILD_STATEMENT); break;}
+                case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
+                case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
+                default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
+            }
+       }
+    }
+    
+
 
     void generateVARIABLE(AST_NODE * VAR_ID)
     {
