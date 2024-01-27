@@ -1,15 +1,17 @@
 ~ a program to show how if works
+
 display "Enter the first and the second number : "
 get first , second
+
 if first > second : ~ scoping in pilot is done using indentation instead of curly braces
-   display "The first number is greater than the second number"
+     display "The first number is greater than the second number"
 
 if second > first : 
-   display "The second number is greater than the first number"
+     display "The second number is greater than the first number"
 
 if first == second:
-    display "Both the numbers are equal !"
-    display "Try entering two different numbers"
+      display "Both the numbers are equal !"
+      display "Try entering two different numbers"
    
 
 return 0 
