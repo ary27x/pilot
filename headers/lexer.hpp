@@ -26,6 +26,7 @@ enum type
     TOKEN_REL_LESSTHANEQUALS,
     TOKEN_REL_GREATERTHAN,
     TOKEN_REL_GREATERTHANEQUALS,
+    TOKEN_MATH,
     TOKEN_INDENT,
     TOKEN_EOF
 };
@@ -51,12 +52,13 @@ std::string typeToString(enum type TYPE)
         case TOKEN_STRING : return "TOKEN_STRING";
         case TOKEN_QUOTES : return "TOKEN_QUOTES";
     	case TOKEN_COMMA : return "TOKEN_COMMA";
-	    case TOKEN_REL_EQUALS : return "TOKEN_REL_EQUALS";
-	    case TOKEN_REL_NOTEQUALS : return "TOKEN_REL_NOTEQUALS";				   
-	    case TOKEN_REL_LESSTHAN : return "TOKEN_REL_LESSTHAN";
-	    case TOKEN_REL_LESSTHANEQUALS : return "TOKEN_REL_LESSTHANEQUALS";
-	    case TOKEN_REL_GREATERTHAN : return "TOKEN_REL_GREATERTHAN";
+	case TOKEN_REL_EQUALS : return "TOKEN_REL_EQUALS";
+	case TOKEN_REL_NOTEQUALS : return "TOKEN_REL_NOTEQUALS";				   
+	case TOKEN_REL_LESSTHAN : return "TOKEN_REL_LESSTHAN";
+	case TOKEN_REL_LESSTHANEQUALS : return "TOKEN_REL_LESSTHANEQUALS";
+	case TOKEN_REL_GREATERTHAN : return "TOKEN_REL_GREATERTHAN";
         case TOKEN_REL_GREATERTHANEQUALS : return "TOKEN_REL_GREATERTHANEQUALS";	
+	case TOKEN_MATH : return "TOKEN_MATH";
         case TOKEN_INDENT : return "TOKEN_INDENT";
     	case TOKEN_EOF : return "TOKEN_EOF";
         default : return "UNRECOGNIZED TOKEN";
@@ -127,6 +129,12 @@ class Lexer
 
     std::unordered_map <std::string , enum type> convertibles = {
     	{"is" , TOKEN_EQUALS},
+	{"plus" , TOKEN_MATH},
+	{"minus" , TOKEN_MATH},
+	{"into" , TOKEN_MATH},
+	{"mod" , TOKEN_MATH},
+	{"times" , TOKEN_MATH},
+	{"by" , TOKEN_MATH}
     	
     };
 
@@ -364,6 +372,34 @@ class Lexer
                 case ')' :
                 {
                     tokens.push_back(tokenizeSPECIAL(TOKEN_RIGHT_PAREN));
+                
+                    break;
+                }
+                
+                case '+' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
+                
+                    break;
+                }
+                case '-' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
+                
+                    break;
+                }case '*' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
+                
+                    break;
+                }case '/' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
+                
+                    break;
+                }case '%' :
+                {
+                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
                 
                     break;
                 }
