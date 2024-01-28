@@ -3,6 +3,7 @@
 
 
 #include "parser.hpp"
+#include "../algorithms/infixToPostfix.hpp"
 #include <fstream>
 #include <vector>
 #include <unordered_map>
@@ -107,11 +108,6 @@ class Generator{
 
     void generatePRINT(AST_NODE * STATEMENT , bool recursiveCall = false)
     {
-        if (!STATEMENT->CHILD->VALUE)
-        {
-            std::cout << "[!] Generation Error : the print statement has no string linked to it";
-            exit(1);
-        }
         
         switch (STATEMENT->CHILD->TYPE)
         {
@@ -138,6 +134,14 @@ class Generator{
                 sectionText << "\ncall _printINTEGER\n\n";
                 
                 break;
+            }
+            case NODE_MATH:
+            {
+                generateMATH(STATEMENT->CHILD->SUB_STATEMENTS);
+                sectionText << "\ncall _printINTEGER\n\n";
+                
+                break;
+
             }
             case NODE_STRING :
             {
@@ -201,12 +205,16 @@ class Generator{
         {
             if (itr == 1) continue;
 
-            registerPlaceHolder = (itr == 0) ? "mov eax , " : "mov ebx , ";
             BUFFERPOINTER = STATEMENT->CHILD->SUB_STATEMENTS[itr];
-            
             switch (BUFFERPOINTER->TYPE)
             {
-                case NODE_INT  : {sectionText << registerPlaceHolder << *BUFFERPOINTER->VALUE << "\n"; break;}
+                case NODE_INT  : {sectionText << "push " << *BUFFERPOINTER->VALUE << "\n"; break;}
+                case NODE_MATH : 
+                {
+                    generateMATH(BUFFERPOINTER->SUB_STATEMENTS); 
+                    sectionText << "push rax\n"; 
+                    break;
+                }
                 case NODE_VARIABLE : 
                 {
                     int offset;
@@ -218,12 +226,13 @@ class Generator{
                     }
 
                     offset = (offsetCounter - elemOffset) * 4; 
-                    sectionText << registerPlaceHolder << "dword [rbp - " << std::to_string(offset);
-                    sectionText << "]\n";    
+                    sectionText << "mov eax , dword [rbp - " << std::to_string(offset);
+                    sectionText << "]\npush rax\n";    
                 }
             }
         }
 
+        sectionText << "pop rbx\npop rax\n";
         sectionText << "cmp eax , ebx \n";
        
         BUFFERPOINTER = STATEMENT->CHILD->SUB_STATEMENTS[1];
@@ -289,7 +298,43 @@ class Generator{
        }
     }
     
+    void generateMATH(std::vector <AST_NODE * >& operations )
+    {
+        std::vector <AST_NODE * > postfixOperations = infixToPostfix(operations);
 
+        // IMPLEMENTING REVERSE POLISH ALGORITHM 
+
+        for (AST_NODE * CURRENT : postfixOperations)
+        {
+        switch (CURRENT->TYPE)
+        {
+            case NODE_INT : {sectionText << "push " << *CURRENT->VALUE  << "\n"; break;}
+            case NODE_VARIABLE : 
+            {
+                int offset_RHS;
+                int elemOffset_RHS = variableReferenceExists(CURRENT->VALUE);
+                if (elemOffset_RHS == -1)
+                {
+                    std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *CURRENT->VALUE << std::endl;
+                    exit(1);
+                }
+
+                offset_RHS = (offsetCounter - elemOffset_RHS) * 4; 
+                sectionText << "mov eax , dword [rbp - " + std::to_string(offset_RHS);
+                sectionText << "]\npush rax\n";;
+                break;
+            }
+            case NODE_OP_ADD : {sectionText << "pop rbx \npop rax \nadd rax , rbx \npush rax\n"; break; }
+            case NODE_OP_SUB : {sectionText << "pop rbx \npop rax \nsub rax , rbx \npush rax\n"; break; }
+            case NODE_OP_MUL : {sectionText << "pop rbx \npop rax \nimul rax , rbx \npush rax\n"; break; }
+            case NODE_OP_DIV : {sectionText << "pop rbx \npop rax \ncall _div \n push rcx\n";break;}
+            case NODE_OP_MOD : {sectionText << "pop rbx \npop rax \ncall _mod \n push rcx\n";break;}
+       
+        }
+        }
+
+        sectionText << "pop rax\n";
+    }
 
     void generateVARIABLE(AST_NODE * VAR_ID)
     {
@@ -313,6 +358,13 @@ class Generator{
                 sectionText << "mov dword [rbp - " << std::to_string(offset);
                 sectionText << "] , " + * VAR_ID->CHILD->VALUE + "\n";
                 
+                break;
+            }
+            case NODE_MATH: 
+            {
+                generateMATH(VAR_ID->CHILD->SUB_STATEMENTS);
+                sectionText << "mov dword [rbp - " << std::to_string(offset);
+                sectionText << "] , eax \n";
                 break;
             }
             case NODE_VARIABLE:
