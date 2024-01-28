@@ -55,12 +55,11 @@ std::string nodeToString(enum NODE_TYPE TYPE)
     	case NODE_REL_GREATERTHAN : return "NODE_REL_GREATERTHAN";
 	case NODE_REL_GREATERTHANEQUALS : return "NODE_REL_GREATERTHANEQUALS";
 	case NODE_MATH : return "NODE_MATH";	
-    case NODE_OP_ADD : return "NODE_OP_ADD";
-    case NODE_OP_SUB : return "NODE_OP_SUB";
-    case NODE_OP_MUL : return "NODE_OP_MUL";
-    case NODE_OP_DIV : return "NODE_OP_DIV";
-    case NODE_OP_MOD : return "NODE_OP_MOD";
-    		     
+    	case NODE_OP_ADD : return "NODE_OP_ADD";
+    	case NODE_OP_SUB : return "NODE_OP_SUB";
+    	case NODE_OP_MUL : return "NODE_OP_MUL";
+    	case NODE_OP_DIV : return "NODE_OP_DIV";
+    	case NODE_OP_MOD : return "NODE_OP_MOD";  		     
     	default : return "UNRECOGNIZED NODE";
         
     }
