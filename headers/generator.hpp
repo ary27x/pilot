@@ -212,8 +212,8 @@ class Generator{
     {
         std::string stringLeft = "@_LOOP_" + std::to_string(loopBranchCounter) + "_LEFT";
         std::string stringRight = "@_LOOP_" + std::to_string(loopBranchCounter) + "_RIGHT";
-        std::string dummyValue = "0";
-        int supplementOffset = 0;
+
+	int supplementOffset = 0;
 
         if (STATEMENT->SUPPLEMENT)
         {
