@@ -1,5 +1,0 @@
-~ this is a program to take in input from the user
-display "Enter any two numbers : "
-get first , second
-display "This is the first number : " first " and this is the second number : " second
-return 0
