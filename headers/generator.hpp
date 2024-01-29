@@ -8,6 +8,7 @@
 #include <vector>
 #include <unordered_map>
 
+
 class Generator{
     public:
     Generator(AST_NODE * ROOT , std::string filename)
@@ -27,6 +28,10 @@ class Generator{
     };
     void writeSections()
     {
+    
+    	if (returnStream.str().size() == 0)
+    	returnStream << "mov rax , 60\nmov rdi , 0\nsyscall";
+      
         assemblyFile << includes.str();
         assemblyFile << sectionData.str();
         assemblyFile << sectionText.str();
@@ -35,6 +40,7 @@ class Generator{
 
         assemblyFile.close();
     }
+
 
     std::string generateRETURN(AST_NODE * STATEMENT)
     {
@@ -65,6 +71,17 @@ class Generator{
         }
         return -1;
     }
+    int variableReferenceExists(std::string * TEST_STRING)
+    {
+        int counter = 0;
+        for (int i = variableVector.size() - 1 ; i >= 0  ; i--)
+        {
+            std::string currentValue = variableVector[i];
+            if (currentValue == *TEST_STRING) return counter;
+            counter++;
+        }
+        return -1;
+    }
 
     void sectionDataDefine(std::string * NEW_ENTRY , int referenceNumber)
     {
@@ -76,6 +93,9 @@ class Generator{
         sectionData << "\n\n"; 
 
     }
+
+
+
 
     void generateGET(AST_NODE * STATEMENT)
     {
@@ -92,7 +112,8 @@ class Generator{
        if (elemOffset == -1)
        {
 	       std::string _INPUT = "INPUT";
-           variableReferences[*VAR_ID->VALUE] = &_INPUT;
+           variableVector.push_back(*VAR_ID->VALUE);
+
            sectionText << "sub rsp , 4\n";
            elemOffset = 0;
            offsetCounter++;
@@ -184,18 +205,154 @@ class Generator{
         
     }
 
-    int variableReferenceExists(std::string * TEST_STRING)
+    
+    
+    
+    void generateRANGE(AST_NODE * STATEMENT)
     {
-        int counter = 0;
-        for (auto iterator = variableReferences.begin() ; iterator != variableReferences.end() ; iterator++)
+        std::string stringLeft = "@_LOOP_" + std::to_string(loopBranchCounter) + "_LEFT";
+        std::string stringRight = "@_LOOP_" + std::to_string(loopBranchCounter) + "_RIGHT";
+        std::string dummyValue = "0";
+        int supplementOffset = 0;
+
+        if (STATEMENT->SUPPLEMENT)
         {
-            if (iterator->first == *TEST_STRING) return counter;
-            counter++;
+        int offset;
+        int elemOffset = variableReferenceExists(STATEMENT->SUPPLEMENT->VALUE);
+        if (elemOffset == -1)
+        {
+            variableVector.push_back(*STATEMENT->SUPPLEMENT->VALUE);
+            sectionText << "sub rsp , 4\n";
+            elemOffset = 0;
+            offsetCounter++;
         }
-        return -1;
+        supplementOffset = (offsetCounter - elemOffset) * 4; 
+        }
+        
+        int offsetLeft ;
+        int offsetRight;
+
+        switch (STATEMENT->CHILD->TYPE)
+        {
+            case NODE_VARIABLE:
+            {
+                int offset;
+                int elemOffset = variableReferenceExists(STATEMENT->CHILD->VALUE);
+                if (elemOffset == -1)
+                {
+                    std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *STATEMENT->CHILD->VALUE << std::endl;
+                    exit(1);
+                }
+
+                offset = (offsetCounter - elemOffset) * 4; 
+                offsetLeft = offset;
+                break;
+            }
+            case NODE_INT :
+            {
+                variableVector.push_back(stringLeft);
+                sectionText << "sub rsp , 4\n";
+                offsetCounter++;
+                offsetLeft = offsetCounter * 4;
+                sectionText << "mov dword [ rbp - " << std::to_string(offsetLeft) << " ] , " << *STATEMENT->CHILD->VALUE << "\n";
+          
+                break;
+            }
+            case NODE_MATH:
+            {
+                generateMATH(STATEMENT->CHILD->SUB_STATEMENTS);
+                variableVector.push_back(stringLeft);
+                sectionText << "sub rsp , 4\n";
+                offsetCounter++;
+                offsetLeft = offsetCounter * 4;
+                sectionText << "mov dword [ rbp - " << std::to_string(offsetLeft) << " ] , " << *STATEMENT->CHILD->VALUE << "\n";
+                break;
+
+            }
+        }
+
+        switch (STATEMENT->LIMIT->TYPE)
+        {
+            case NODE_VARIABLE:
+            {
+                
+                int offset;
+                int elemOffset = variableReferenceExists(STATEMENT->LIMIT->VALUE);
+                if (elemOffset == -1)
+                {
+                    std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *STATEMENT->LIMIT->VALUE << std::endl;
+                    exit(1);
+                }
+
+                offset = (offsetCounter - elemOffset) * 4; 
+                offsetRight = offset;
+                break;
+            }
+            case NODE_INT :
+            {
+
+                variableVector.push_back(stringRight);
+
+                sectionText << "sub rsp , 4\n";
+                offsetCounter++;
+                offsetRight = offsetCounter * 4;
+                sectionText << "mov dword [ rbp - " << std::to_string(offsetRight) << " ] , " << *STATEMENT->LIMIT->VALUE << "\n";
+
+                break;
+            }
+            case NODE_MATH:
+            {
+                generateMATH(STATEMENT->LIMIT->SUB_STATEMENTS);
+                variableVector.push_back(stringRight);
+
+                sectionText << "sub rsp , 4\n";
+                offsetCounter++;
+                offsetRight = offsetCounter * 4;
+                sectionText << "mov dword [ rbp - " << std::to_string(offsetRight) << " ] , " << *STATEMENT->LIMIT->VALUE << "\n";
+
+                break;
+
+            }
+        }
+
+      
+        int loopBranchCounterCopy = loopBranchCounter;
+        loopBranchCounter++;
+
+        sectionText << "jmp _LOOP_" << std::to_string(loopBranchCounterCopy) << "_ENTRY \n";
+        sectionText << "_LOOP_" << std::to_string(loopBranchCounterCopy) << "_ENTRY: \n";
+        
+        if (supplementOffset) 
+        {
+        sectionText << "mov eax , dword [ rbp - " << std::to_string(offsetLeft) << " ]\n";
+        sectionText << "mov dword [rbp - " << std::to_string(supplementOffset) << "] , eax\n";
+        }
+
+        sectionText << "mov eax , dword [ rbp - " << std::to_string(offsetLeft) << " ] \n";
+        sectionText << "mov ebx , dword [ rbp - " << std::to_string(offsetRight) << " ] \n";
+        sectionText << "cmp rax , rbx\n";
+        sectionText << "jg _LOOP_" << std::to_string(loopBranchCounterCopy) << "_EXIT \n";
+
+
+         for (AST_NODE * CHILD_STATEMENT : STATEMENT->SUB_STATEMENTS)
+       {
+	    switch(CHILD_STATEMENT->TYPE)
+            {
+                case NODE_PRINT : {generatePRINT(CHILD_STATEMENT); break;}
+		        case NODE_GET : {generateGET(CHILD_STATEMENT); break;}
+                case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
+                case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
+                case NODE_RANGE : {generateRANGE(CHILD_STATEMENT); break;}
+                default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
+            }
+       }
+
+        sectionText << "add dword [ rbp - " << std::to_string(offsetLeft) << " ] , 1\n";
+        sectionText << "jmp _LOOP_" << std::to_string(loopBranchCounterCopy) << "_ENTRY \n";
+        sectionText << "_LOOP_" << std::to_string(loopBranchCounterCopy) << "_EXIT: \n";
+
     }
-    
-    
+
     void generateIF(AST_NODE * STATEMENT)
     {
         AST_NODE * BUFFERPOINTER;
@@ -238,12 +395,8 @@ class Generator{
         BUFFERPOINTER = STATEMENT->CHILD->SUB_STATEMENTS[1];
        
         sectionText << relationalReferences[BUFFERPOINTER->TYPE] << " _BRANCH_" << std::to_string(branchCounter) <<"_IF\n";
-
-       // we need to create the else label here
-
         sectionText << "jmp _BRANCH_" << std::to_string(branchCounter) <<"_ELSE\n\n";
-       
-       sectionText << "_BRANCH_" << std::to_string(branchCounter) <<"_IF:\n";
+        sectionText << "_BRANCH_" << std::to_string(branchCounter) <<"_IF:\n";
 
        int branchCounterCopy = branchCounter;
        if (STATEMENT->SUB_STATEMENTS.size() == 0)
@@ -260,20 +413,20 @@ class Generator{
 		        case NODE_GET : {generateGET(CHILD_STATEMENT); break;}
                 case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
                 case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
+                case NODE_RANGE : {generateRANGE(CHILD_STATEMENT); break;}
+
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
             }
        }
        
      
        sectionText << "jmp _BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT\n";     
-       
        sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_ELSE:\n";
        
        if (STATEMENT->SUPPLEMENT)
          generateELSE(STATEMENT->SUPPLEMENT);
        
        sectionText << "jmp _BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT\n\n";     
-       
        sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT:\n";
        
        
@@ -290,9 +443,10 @@ class Generator{
 	    switch(CHILD_STATEMENT->TYPE)
             {
                 case NODE_PRINT : {generatePRINT(CHILD_STATEMENT); break;}
-		case NODE_GET : {generateGET(CHILD_STATEMENT); break;}
+		        case NODE_GET : {generateGET(CHILD_STATEMENT); break;}
                 case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
                 case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
+                case NODE_RANGE : {generateRANGE(CHILD_STATEMENT); break;}
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
             }
        }
@@ -343,7 +497,7 @@ class Generator{
         int elemOffset = variableReferenceExists(VAR_ID->VALUE);
         if (elemOffset == -1)
         {
-            variableReferences[*VAR_ID->VALUE] = VAR_ID->CHILD->VALUE;
+            variableVector.push_back(*VAR_ID->VALUE);
             sectionText << "sub rsp , 4\n";
             elemOffset = 0;
             offsetCounter++;
@@ -357,7 +511,6 @@ class Generator{
             {
                 sectionText << "mov dword [rbp - " << std::to_string(offset);
                 sectionText << "] , " + * VAR_ID->CHILD->VALUE + "\n";
-                
                 break;
             }
             case NODE_MATH: 
@@ -400,6 +553,7 @@ class Generator{
         stringReferenceCounter = 0;
         offsetCounter = 0;
         branchCounter = 0;
+        loopBranchCounter = 0;
         includes << "\%include \"asm/readINTEGER.asm\" \n";
 	    includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; 
         sectionData << "section .data\n\n";
@@ -413,7 +567,8 @@ class Generator{
                 case NODE_PRINT : {generatePRINT(CURRENT); break;}
 		        case NODE_GET : {generateGET(CURRENT); break;}
                 case NODE_VARIABLE : {generateVARIABLE(CURRENT); break;}
-                case NODE_IF : {generateIF(CURRENT); break;                }
+                case NODE_IF : {generateIF(CURRENT); break;}
+                case NODE_RANGE : {generateRANGE(CURRENT); break;}
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CURRENT->TYPE); break;}
             }
         }
@@ -433,8 +588,9 @@ class Generator{
     std::stringstream returnStream;
     int stringReferenceCounter;
     int branchCounter; 
+    int loopBranchCounter;
     std::vector <std::string *> stringReferences;
-    std::unordered_map<std::string  , std::string * > variableReferences;
+    std::vector <std::string> variableVector;
     int offsetCounter;
     AST_NODE * AST_ROOT;
     std::ofstream assemblyFile;
