@@ -27,6 +27,9 @@ enum type
     TOKEN_REL_GREATERTHAN,
     TOKEN_REL_GREATERTHANEQUALS,
     TOKEN_MATH,
+    TOKEN_RANGE, 
+    TOKEN_TO,
+    TOKEN_AS,
     TOKEN_INDENT,
     TOKEN_EOF
 };
@@ -59,6 +62,9 @@ std::string typeToString(enum type TYPE)
 	case TOKEN_REL_GREATERTHAN : return "TOKEN_REL_GREATERTHAN";
         case TOKEN_REL_GREATERTHANEQUALS : return "TOKEN_REL_GREATERTHANEQUALS";	
 	case TOKEN_MATH : return "TOKEN_MATH";
+	case TOKEN_RANGE : return "TOKEN_RANGE";
+        case TOKEN_TO : return "TOKEN_TO";
+	case TOKEN_AS : return "TOKEN_AS";
         case TOKEN_INDENT : return "TOKEN_INDENT";
     	case TOKEN_EOF : return "TOKEN_EOF";
         default : return "UNRECOGNIZED TOKEN";
@@ -134,7 +140,10 @@ class Lexer
 	{"into" , TOKEN_MATH},
 	{"mod" , TOKEN_MATH},
 	{"times" , TOKEN_MATH},
-	{"by" , TOKEN_MATH}
+	{"by" , TOKEN_MATH},
+	{"range" , TOKEN_RANGE},
+	{"to" , TOKEN_TO},
+	{"as" , TOKEN_AS}
     	
     };
 
