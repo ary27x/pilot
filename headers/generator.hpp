@@ -265,7 +265,7 @@ class Generator{
                 sectionText << "sub rsp , 4\n";
                 offsetCounter++;
                 offsetLeft = offsetCounter * 4;
-                sectionText << "mov dword [ rbp - " << std::to_string(offsetLeft) << " ] , " << *STATEMENT->CHILD->VALUE << "\n";
+                sectionText << "mov dword [ rbp - " << std::to_string(offsetLeft) << " ] , eax\n";
                 break;
 
             }
@@ -308,7 +308,7 @@ class Generator{
                 sectionText << "sub rsp , 4\n";
                 offsetCounter++;
                 offsetRight = offsetCounter * 4;
-                sectionText << "mov dword [ rbp - " << std::to_string(offsetRight) << " ] , " << *STATEMENT->LIMIT->VALUE << "\n";
+                sectionText << "mov dword [ rbp - " << std::to_string(offsetRight) << " ] , eax\n";
 
                 break;
 
