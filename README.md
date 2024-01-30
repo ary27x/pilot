@@ -49,7 +49,7 @@ We use the "get" keyword to take in input from the user , and we need not declar
 For taking multiple inputs , the names of the corresponding variables has to be separated by the comman(,) operator
 
     display "Enter the first and the second number : "
-              get firstnumber , secondnumber
+    get firstnumber , secondnumber
 <hr>
 
 **SCOPING**
