@@ -1,66 +1,133 @@
-DOCUMENTATION EXPLAINING THE SYNTAX OF PILOT PROGRAMMING LANGUAGE
+<h1>PILOT PROGRAMMING LANGUAGE SYNTAX DOCUMENTATION</h1>
 
-The syntax of pilot programming language has very high resemblance to the english language , which makes it very easy to read and very beginner friendly.
+*(The syntax of pilot programming language has very high resemblance to the english language , which makes it very easy to read and very beginner friendly.)*
 
--> COMMENTS :
+
+**COMMENTS**
+
+
 Comments are denoted using the ~ (BACK TICK) operator.
-Example : ~ this is a comment
 
--> DECLARING VARIABLES :
-Variables can be declared using the "is" keyword or "="
-Example : first is 10
+    ~ this is a comment
 
+<hr>
 
--> PRINT:
+**DECLARING VARIABLES**
+
+Variables can be declared using the "is" keyword or "=".
+
+The variable name has to start with either _ (underscore) or a character, but further on it has ability to have either underscore or alphanumeric characters.
+
+    first is 10
+    my_favorite_nubmer is 27
+
+<hr>
+
+**PRINT**
+
 You can print a string , number , variable or the value of a mathematical calculation onto the screen.
 Every string , number , var or math calc has to be separated using the comma (,) operator in the display field
-Example : display "Hello World!"
-Example : display "This is the value of 7 sqaured : " , 7 times 7
 
+Example : 
 
--> USER INPUT:
+    display "Hello World!"
+    display "This is the value of 7 sqaured : " , 7 times 7
+<hr>
+
+**USER INPUT**
+
 We use the "get" keyword to take in input from the user , and we need not declare the variable first
 For taking multiple inputs , the names of the corresponding variables has to be separated by the comman(,) operator
-Example : display "Enter the first and the second number : "
-          get firstnumber , secondnumber
 
--> SCOPING:
+    display "Enter the first and the second number : "
+              get firstnumber , secondnumber
+<hr>
+
+**SCOPING**
+
 Scoping in python is done using identation , not curly brace (similar to python).
 Statements with the same indentation have the same scope
+<hr>
 
--> LOOP :
+**LOOP**
+
 Pilot currently supports "range" loop which follows the following syntax:
-Example: range <value> to <value>:
-              display "This is from the loop !"
+
+    range <value> to <value>:
+        display "This is from the loop !"
+        
 In the above example , <value> can be an integer value , a predefined variable or a mathematical statement
-Example : lower is 10
-          upper is 20
-          range lower to upper :
-                  display "This would be printed 10 times ! "
+
+    lower is 10
+    upper is 20
+    range lower to upper :
+        display "This would be printed 10 times ! "
 
 You also have the ability to assign an iterator for the loop.
-Example: lower is 10
-         upper is 20
-         range lower to upper as i:
-               display "This is the value of i : " , i ~ this would print the numbers from 10 to 20
 
+    lower is 10
+    upper is 20
+    range lower to upper as i:
+        display "This is the value of i : " , i ~ this would print the numbers from 10 to 20
 
--> IF ELSE : 
+<hr>
+
+**IF ELSE** 
+
 Pilot programming language follows the basic construct of if else.
 Syntax :
-if <condition>:
-    ~ if block
-else :
-    ~ else block
 
-Example:
-display "Enter the first and the second number : "
-get first , second
-if first > second : 
-    display "The first number is greater than the second number "
-else : 
-    display "The second number is greater than the first number "
+    if <condition>:
+        ~ if block
+    else :
+        ~ else block
+        
+the else block is optional, you can remove it if you wish to.
+For the condition , we can make use of the following relational operators:
 
-   
-(For various instances of an operator, you could use a correponsding keyword which makes it very readable
-Example : varialble = variable + 2 could be written as variable is variable plus 2 )
+    if first < second  ~ less than operator
+    if first <= second ~ less than equal to operator
+    if first > second  ~ greater than operator
+    if first >= second ~ greater than equal to operator
+    if first == second ~ equals operator
+    if first != second ~ not equals operator
+    
+Following is an example of getting two numbers from the user and printing the larger value
+
+    display "Enter the first and the second number : "
+    get first , second
+    if first > second : 
+        display first
+    else : 
+        display second
+
+<hr>
+
+**MATHEMATICS**
+
+Pilot has the ability to perform basic mathematical operations using the following mathematical operators.
+
+    result is first + second ~ addition operation
+    result is first - second ~ subtraction operation
+    result is first * second ~ multiplication operation
+    result is first / second ~ division operation
+    result is first % second ~ modulus operation
+    
+Pilot also employs translatable keywords for maths , which gets converted to mathematical operators.
+
+List of all such translatable keyword :
+
+| Keyword | Operator |
+| ------  | -- |
+| plus    | +  |
+| minus   | -  |
+| times   | *  |
+| by      | /  |
+| mod     | %  |
+
+Here is an example of such keyword:
+
+    result is first times second  ~  equivalent to result = first * second
+
+<hr>
+
