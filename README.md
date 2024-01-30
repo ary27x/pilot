@@ -122,6 +122,11 @@ Pilot has the ability to perform basic mathematical operations using the followi
     result is first / second ~ division operation
     result is first % second ~ modulus operation
     
+
+You can also chain the mathematical operators in the following manner:
+
+    result is first + second * third / fourth - fifth
+
 Pilot also employs translatable keywords for maths , which gets converted to mathematical operators.
 
 List of all such translatable keyword :
@@ -137,6 +142,7 @@ List of all such translatable keyword :
 Here is an example of such keyword:
 
     result is first times second  ~  equivalent to result = first * second
+    
 
 <hr>
 
