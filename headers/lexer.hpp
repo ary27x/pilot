@@ -31,6 +31,7 @@ enum type
     TOKEN_TO,
     TOKEN_AS,
     TOKEN_INDENT,
+    TOKEN_DOT,
     TOKEN_EOF
 };
 
@@ -67,6 +68,7 @@ std::string typeToString(enum type TYPE)
 	case TOKEN_AS : return "TOKEN_AS";
         case TOKEN_INDENT : return "TOKEN_INDENT";
     	case TOKEN_EOF : return "TOKEN_EOF";
+        case TOKEN_DOT : return "TOKEN_DOT";
         default : return "UNRECOGNIZED TOKEN";
     }
 }
@@ -354,7 +356,12 @@ class Lexer
 				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_GREATERTHAN));
 				        break;
 			        }
-		        }       
+		        } 
+		        case '.':
+			{
+				tokens.push_back(tokenizeSPECIAL(TOKEN_DOT));
+				break;
+			}	
 
 		        case ':' :
 		        {
