@@ -41,6 +41,19 @@ Example :
 
     display "Hello World!"
     display "This is the value of 7 sqaured : " , 7 times 7
+To print colored text onto the screen call the display sub function using the name of the color as follows:
+
+    display.red    "this is a red text"
+    display.green  "this is a green text"
+    display.yellow "this is a yellow text"
+    display.cyan   "this is a cyan text "
+    display.purple "this is a purple text"
+    display.blue   "this is a blue text"
+    display.white  "this is a white text"
+Output:<br><br>
+![image](https://github.com/ary27x/pilot/assets/63790777/bf4d9903-7460-4aa7-80b5-f5f69e5d6fbc)
+
+
 <hr>
 
 **USER INPUT**
@@ -78,6 +91,23 @@ You also have the ability to assign an iterator for the loop.
     upper is 20
     range lower to upper as i:
         display "This is the value of i : " , i ~ this would print the numbers from 10 to 20
+Pilot also has support for complex nested loop.
+
+Here is an example program to check for prime numbers in a given range:
+
+    display "Enter the lower and the upper limit : "
+    get lower , upper    
+    range lower to upper as number : 
+        factorCounter is 0
+        range 1 to number as value:
+                  if number mod value == 0:
+                       factorCounter is factorCounter + 1
+       if factorCounter == 2:
+              display.red  "PRIME NUMBER : " , number
+       else: 
+             display.green "NOT PRIME    : " , number
+Output:<br><br>
+![image](https://github.com/ary27x/pilot/assets/63790777/a58883fe-7cab-477c-a515-b86e57e56fc6)
 
 <hr>
 
