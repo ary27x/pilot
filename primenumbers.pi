@@ -1,13 +1,14 @@
-~ program to display all the prime numbers from a user defined range
+~ program to find all the prime numbers in a user defined range of numbers
 
-display "Enter the lower and the upper limit of the range : "
-get lower , upper 
+display "Enter the lower and the upper limit : "
+get lower , upper
 
-range lower to upper as number:
-     factorCounter is 0 ~ we use this to count the number of factors
-     range 1 to number as value:
-         if number mod value == 0:
-             factorCounter is factorCounter + 1
-     if factorCounter == 2:
-         display "This following is a prime number : " , number
-            
+range lower to upper as number : 
+       factorCounter is 0 ~ we will use this variable to count the number of factors 
+       range 1 to number as value:
+                  if number mod value == 0:
+                       factorCounter is factorCounter + 1
+       if factorCounter == 2:
+              display.red  "PRIME NUMBER : " , number
+       else: 
+             display.green "NOT PRIME    : " , number
