@@ -1,473 +1,632 @@
-#ifndef __LEXER_H
-#define __LEXER_H
+#ifndef __PARSER_H
+#define __PARSER_H
 
-#include <unordered_map>
-#include <string>
+#include "lexer.hpp"
 #include <vector>
-#include <sstream>
-#include <iostream>
-#include <algorithm>
+#include <stack>
+#include <unordered_map>
 
-enum type 
+
+enum NODE_TYPE
 {
-    TOKEN_ID,
-    TOKEN_INT,
-    TOKEN_EQUALS,
-    TOKEN_SEMICOLON,
-    TOKEN_LEFT_PAREN,
-    TOKEN_RIGHT_PAREN,
-    TOKEN_KEYWORD,
-    TOKEN_STRING,
-    TOKEN_QUOTES,
-    TOKEN_COMMA,
-    TOKEN_REL_EQUALS,
-    TOKEN_REL_NOTEQUALS,
-    TOKEN_REL_LESSTHAN,
-    TOKEN_REL_LESSTHANEQUALS,
-    TOKEN_REL_GREATERTHAN,
-    TOKEN_REL_GREATERTHANEQUALS,
-    TOKEN_MATH,
-    TOKEN_RANGE, 
-    TOKEN_TO,
-    TOKEN_AS,
-    TOKEN_INDENT,
-    TOKEN_DOT,
-    TOKEN_EOF
+    NODE_ROOT,
+    NODE_VARIABLE,
+    NODE_RETURN,
+    NODE_PRINT,
+    NODE_GET,
+    NODE_INT,
+    NODE_STRING,
+    NODE_IF, 
+    NODE_ELSE,
+    NODE_CONDITION,
+    NODE_REL_EQUALS,
+    NODE_REL_NOTEQUALS, 
+    NODE_REL_LESSTHAN, 
+    NODE_REL_LESSTHANEQUALS,
+    NODE_REL_GREATERTHAN,
+    NODE_REL_GREATERTHANEQUALS,
+    NODE_RANGE,
+    NODE_MATH,
+    NODE_OP_ADD,
+    NODE_OP_SUB,
+    NODE_OP_MUL,
+    NODE_OP_DIV,
+    NODE_OP_MOD,
+
 };
 
-struct Token
+std::string nodeToString(enum NODE_TYPE TYPE)
 {
-    enum type TYPE;
-    std::string VALUE;
-};
-
-
-std::string typeToString(enum type TYPE)
-{
-    switch(TYPE)
+    switch (TYPE)
     {
-        case TOKEN_ID : return "TOKEN_ID";
-        case TOKEN_INT : return "TOKEN_INT";
-        case TOKEN_EQUALS : return "TOKEN_EQUALS";
-        case TOKEN_SEMICOLON : return "TOKEN_SEMICOLON";
-        case TOKEN_LEFT_PAREN : return "TOKEN_LEFT_PAREN";
-        case TOKEN_RIGHT_PAREN : return "TOKEN_RIGHT_PAREN";
-        case TOKEN_KEYWORD : return "TOKEN_KEYWORD";
-        case TOKEN_STRING : return "TOKEN_STRING";
-        case TOKEN_QUOTES : return "TOKEN_QUOTES";
-    	case TOKEN_COMMA : return "TOKEN_COMMA";
-	case TOKEN_REL_EQUALS : return "TOKEN_REL_EQUALS";
-	case TOKEN_REL_NOTEQUALS : return "TOKEN_REL_NOTEQUALS";				   
-	case TOKEN_REL_LESSTHAN : return "TOKEN_REL_LESSTHAN";
-	case TOKEN_REL_LESSTHANEQUALS : return "TOKEN_REL_LESSTHANEQUALS";
-	case TOKEN_REL_GREATERTHAN : return "TOKEN_REL_GREATERTHAN";
-        case TOKEN_REL_GREATERTHANEQUALS : return "TOKEN_REL_GREATERTHANEQUALS";	
-	case TOKEN_MATH : return "TOKEN_MATH";
-	case TOKEN_RANGE : return "TOKEN_RANGE";
-        case TOKEN_TO : return "TOKEN_TO";
-	case TOKEN_AS : return "TOKEN_AS";
-        case TOKEN_INDENT : return "TOKEN_INDENT";
-    	case TOKEN_EOF : return "TOKEN_EOF";
-        case TOKEN_DOT : return "TOKEN_DOT";
-        default : return "UNRECOGNIZED TOKEN";
+        case NODE_ROOT : return "NODE_ROOT";
+        case NODE_VARIABLE : return "NODE_VARIABLE";
+        case NODE_RETURN : return "NODE_RETURN";
+        case NODE_PRINT : return "NODE_PRINT";
+ 	case NODE_GET : return "NODE_GET";
+        case NODE_INT : return "NODE_INT";
+        case NODE_STRING : return "NODE_STRING";
+	case NODE_IF : return "NODE_IF";
+	case NODE_ELSE : return "NODE_ELSE";
+	case NODE_CONDITION : return "NODE_CONDITION";		       
+        case NODE_REL_EQUALS : return "NODE_REL_EQUALS";
+	case NODE_REL_NOTEQUALS :  return "NODE_REL_NOTEQUALS";
+        case NODE_REL_LESSTHAN : return "NODE_REL_LESSTHAN";
+	case NODE_REL_LESSTHANEQUALS : return "NODE_REL_LESSTHANEQUALS";
+    	case NODE_REL_GREATERTHAN : return "NODE_REL_GREATERTHAN";
+	case NODE_REL_GREATERTHANEQUALS : return "NODE_REL_GREATERTHANEQUALS";
+	case NODE_RANGE : return "NODE_RANGE";
+	case NODE_MATH : return "NODE_MATH";	
+    	case NODE_OP_ADD : return "NODE_OP_ADD";
+    	case NODE_OP_SUB : return "NODE_OP_SUB";
+    	case NODE_OP_MUL : return "NODE_OP_MUL";
+    	case NODE_OP_DIV : return "NODE_OP_DIV";
+    	case NODE_OP_MOD : return "NODE_OP_MOD";  		     
+    	default : return "UNRECOGNIZED NODE";
+        
     }
 }
 
-class Lexer
+struct AST_NODE 
 {
+    enum NODE_TYPE TYPE;
+    std::string * VALUE;
+    AST_NODE * CHILD;
+    AST_NODE * LIMIT;
+    std::vector <AST_NODE *> SUB_STATEMENTS; // THIS IS ONLY FOR THE ROOT NODE
+    AST_NODE * SUPPLEMENT; // THIS IS FOR TEMPORARY MEASURES				     
+};
+
+class Parser{
     public:
-    Lexer(std::string sourceCode)
-    {
-        source = sourceCode;
-        cursor = 0;
-        size = sourceCode.length();
-        current = sourceCode.at(cursor);
-        lineNumber = 1;
-        characterNumber = 1;
-    }
     
-    char seek (int offset)
+    
+    Parser(std::vector <Token *> tokens)
     {
-	if (cursor + offset >= size)
-		return 0;
+        parserTokens = tokens;
+        index = 0;
+        limit = parserTokens.size();
+        current = parserTokens.at(index);
+    }
+
+    std::unordered_map <std::string , enum NODE_TYPE> operatorMap = {
+        {"+" ,     NODE_OP_ADD},
+        {"-" ,     NODE_OP_SUB},
+        {"*" ,     NODE_OP_MUL},
+        {"/" ,     NODE_OP_DIV},
+        {"%" ,     NODE_OP_MOD},
+	{"plus" ,  NODE_OP_ADD},
+	{"minus" , NODE_OP_SUB},
+	{"into" ,  NODE_OP_MUL},
+        {"mod" ,   NODE_OP_MOD},
+        {"times" , NODE_OP_MUL},
+        {"by" ,    NODE_OP_DIV},
+        
+    };
+
+    std::vector <std::string> colorSupport = {
+        "red" ,
+        "green" ,
+        "yellow" ,
+        "blue" , 
+        "purple" ,
+        "cyan" ,
+        "white"
+          };
+
+    Token * tokenSeek (int offset)
+    {
+	if (index + offset < limit)
+		return parserTokens.at(index+offset);
 	else
-	{
-	   return source[cursor + offset];
-	}
+		return parserTokens.at(limit-1); // we would be returning an eof token 
     }
 
-    char advance () 
+    Token * proceed (enum type TYPE) 
     {
-        if (cursor < size)
+        if (current->TYPE != TYPE)
         {
-            char temp = current;
-            cursor++;
-            characterNumber++;
-            current = (cursor < size) ? source[cursor] : '\0';
-            return temp;
+        	std::cout << "this is what was expected : " << typeToString(TYPE) << " but this is what we got : " << typeToString(current->TYPE) << std::endl;
+            std::cout << "[!] SYNTAX ERROR  !!" << std::endl;
+            exit(1);
         }
-        else{
-            return '\0';
-        }
-    }
-
-    void skipNew()
-    {
-    	while(current == '\n')
-    	{
-    		lineNumber++;
-                characterNumber = 0;
-    		advance();
-    	}
-    }
-    
-    void checkAndSkip()
-    {
-        while (current == ' ' || current == '\t' || current == '\r')
-        { 
-            advance();
+        else
+        {
+            index++;
+            current = parserTokens.at(index);
+            return current;
         }
     }
-
-    std::vector <std::string> keywords = {"return" , "print" , "get","if" , "else"};
-
-    std::unordered_map <std::string , std::string> translatables = {
-    {"display" , "print"}
-    };
-
-    std::unordered_map <std::string , enum type> convertibles = {
-    	{"is" , TOKEN_EQUALS},
-	{"plus" , TOKEN_MATH},
-	{"minus" , TOKEN_MATH},
-	{"into" , TOKEN_MATH},
-	{"mod" , TOKEN_MATH},
-	{"times" , TOKEN_MATH},
-	{"by" , TOKEN_MATH},
-	{"range" , TOKEN_RANGE},
-	{"to" , TOKEN_TO},
-	{"as" , TOKEN_AS}
-    	
-    };
-
-    Token * tokenizeID_KEYWORD()
+    AST_NODE * parseINT()
     {
-      std::stringstream buffer;
-      buffer << advance(); 
+        if (current->TYPE != TOKEN_INT)
+        {
+            std::cout << "[!] SYNTAX ERROR " << std::endl;
+                    exit(1);
+        }
 
-      while (isalnum(current) || current == '_')
-      {
-        buffer << advance();
-      }
+        AST_NODE * newNode = new AST_NODE();
+        newNode->TYPE = NODE_INT;
+        newNode->VALUE = &current->VALUE;
+        proceed(TOKEN_INT);
+        return newNode;
+    }
 
-      Token * newToken = new Token();
-      newToken->VALUE = buffer.str();
-      
-      if (translatables.find(newToken->VALUE) != translatables.end())
-      {
-      	      newToken->VALUE = translatables[newToken->VALUE];
-      }
+    AST_NODE * parseID_RHS()
+    {
+        std::string * buffer = &current->VALUE;
+        proceed(TOKEN_ID);
+
+        AST_NODE * newNode = new AST_NODE();
+
+        newNode->VALUE = buffer;
+        newNode->TYPE = NODE_VARIABLE;
+
+        return newNode;
+
+    }
+
+    AST_NODE * parseOPERATOR()
+    {
+        AST_NODE * newNode = new AST_NODE();
+        newNode->TYPE = operatorMap[current->VALUE];
+        proceed(TOKEN_MATH);
+        return newNode;
+    }
+
+    AST_NODE * parseMATH()
+    {
+    	AST_NODE * newNode = new AST_NODE();
+    	newNode->TYPE = NODE_MATH;
+    	 
+        switch (current->TYPE)
+        {
+            case TOKEN_INT : {newNode->SUB_STATEMENTS.push_back(parseINT()); break;}
+            case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID_RHS()); break;}
+            default : {std::cout << "[!] Syntax Error In Maths  : Expected an integer or a value" << std::endl; exit(1);}
+        }
           
-      if (convertibles.find(newToken->VALUE) != convertibles.end())
-      {
-	      newToken->TYPE = convertibles[newToken->VALUE];  
-      }
-      else
-      {
-      newToken->TYPE = (std::find(keywords.begin() , keywords.end() , newToken->VALUE) != keywords.end()) ? TOKEN_KEYWORD : TOKEN_ID;
-      }
+        newNode->SUB_STATEMENTS.push_back(parseOPERATOR());
+ 
+        switch (current->TYPE)
+        {
+            case TOKEN_INT : {newNode->SUB_STATEMENTS.push_back(parseINT()); break;}
+            case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID_RHS()); break;}
+            default : {std::cout << "[!] Syntax Error In Maths  : Expected an integer or a value" << std::endl; exit(1);}
+        }
 
-      return newToken;
+        while (current->TYPE == TOKEN_MATH)
+        {
+        newNode->SUB_STATEMENTS.push_back(parseOPERATOR());
+        switch (current->TYPE)
+        {
+            case TOKEN_INT : {newNode->SUB_STATEMENTS.push_back(parseINT()); break;}
+            case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID_RHS()); break;}
+            default : {std::cout << "[!] Syntax Error In Maths  : Expected an integer or a value" << std::endl; exit(1);}
+        }
+        }
 
+        
+    	return newNode;
     }
 
-    Token * tokenizeSTRING()
+    AST_NODE * parseID()
     {
-        std::stringstream buffer;
-        while (current != '"')
+        std::string * buffer = &current->VALUE;
+        proceed(TOKEN_ID);
+        proceed(TOKEN_EQUALS);
+
+        AST_NODE * newNode = new AST_NODE();
+        newNode->VALUE = buffer;
+        newNode->TYPE = NODE_VARIABLE;
+        
+        switch (current->TYPE)
         {
-            if (current == '\0')
-            {
-                std::cout << "[!] Lexer Error : Missing Quotes";
+            case TOKEN_INT : {newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT(); break;}
+            case TOKEN_ID : {newNode->CHILD =  (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS(); break;}
+
+            default : {
+                std::cout << "[!] SYNTAX ERROR : Unidentified Token : " << typeToString(current->TYPE) << std::endl;
                 exit(1);
             }
-            buffer << advance();
         }
 
-        Token * newToken = new Token();
-        newToken->TYPE = TOKEN_STRING;
-        newToken->VALUE = buffer.str();
-        
-        return newToken;
+        return newNode;
 
-        }
+    }
 
-    Token * tokenizeSPECIAL(enum type TYPE)
+    AST_NODE * parseRETURN()
     {
-        Token * newToken = new Token();
-        newToken->TYPE = TYPE;
-        newToken->VALUE = std::string(1 , advance());
+        proceed(TOKEN_KEYWORD);
+        AST_NODE * newNode = new AST_NODE();
+        newNode->TYPE = NODE_RETURN;
+        newNode->CHILD = parseINT();
 
-	if (newToken->VALUE == "\n")
+        return newNode;
+    }
+
+    AST_NODE * parseSTRING()
+    {
+        if (current->TYPE != TOKEN_STRING)
+        {
+            std::cout << "[!] Parser Error : the print statement does not have a string linked to it";
+            exit(1);
+        }
+
+        AST_NODE * newNode = new AST_NODE();
+
+        newNode->TYPE = NODE_STRING;
+        newNode->VALUE = &current->VALUE;
+        
+        proceed(TOKEN_STRING);
+        return newNode;
+    }
+
+    AST_NODE * parseGET(bool recursiveCall = false)
+    {
+
+	if (!recursiveCall) proceed(TOKEN_KEYWORD);
+
+	AST_NODE * newNode = new AST_NODE();
+
+	newNode->TYPE = NODE_GET;
+	newNode->CHILD = parseID_RHS();
+
+
+	if (current->TYPE == TOKEN_COMMA)
 	{
-		newToken->VALUE = "\\n";
+		  proceed(TOKEN_COMMA);
+		  newNode->SUB_STATEMENTS.push_back(parseGET(true));
 	}
 
-        return newToken;
-    }
-    Token * tokenizeSEMICOLON (int scope)
-    {
-	Token * newToken = new Token();
-	newToken->TYPE = TOKEN_SEMICOLON;
-	newToken->VALUE = std::to_string(scope);
+	return newNode;
 
-	return newToken;
     }
-    Token * tokenizeINT()
+
+    AST_NODE * parseCONDITION()
     {
-        std::stringstream buffer;
-        while (isdigit(current))
+	    AST_NODE * newNODE = new AST_NODE();
+	    newNODE->TYPE = NODE_CONDITION;
+	    
+
+	    
+      switch(current->TYPE)
+      {
+	      case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseID_RHS()); break;}
+	      case TOKEN_INT : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseINT()); break;}
+	      default : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}
+			       
+			       
+      }
+      
+      AST_NODE * operatorNODE = new AST_NODE();
+      
+      switch(current->TYPE)
+      {
+      	case TOKEN_REL_EQUALS : {operatorNODE->TYPE = NODE_REL_EQUALS; proceed(TOKEN_REL_EQUALS); break;}
+	    case TOKEN_REL_NOTEQUALS : {operatorNODE->TYPE= NODE_REL_NOTEQUALS ; proceed(TOKEN_REL_NOTEQUALS);  break;}				   
+	    case TOKEN_REL_LESSTHAN : {operatorNODE->TYPE = NODE_REL_LESSTHAN; proceed(TOKEN_REL_LESSTHAN); break;}
+	    case TOKEN_REL_LESSTHANEQUALS : {operatorNODE->TYPE = NODE_REL_LESSTHANEQUALS; proceed(TOKEN_REL_LESSTHANEQUALS); break;}
+	    case TOKEN_REL_GREATERTHAN : {operatorNODE->TYPE = NODE_REL_GREATERTHAN; proceed(TOKEN_REL_GREATERTHAN); break;}
+        case TOKEN_REL_GREATERTHANEQUALS : {operatorNODE->TYPE = NODE_REL_GREATERTHANEQUALS; proceed(TOKEN_REL_GREATERTHANEQUALS); break;}
+      	default : {std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << " Expected a relational operator " << std::endl; exit(1);}
+      }
+
+      newNODE->SUB_STATEMENTS.push_back(operatorNODE);
+
+      switch(current->TYPE)
+      {
+	      case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseID_RHS()); break;}
+	      case TOKEN_INT : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseINT()); break;}
+	      default : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}
+	  }
+        
+      return newNODE;
+      
+    }
+
+    AST_NODE * parseRANGE()
+    {
+       proceed(TOKEN_RANGE);
+       AST_NODE * newNode = new AST_NODE();
+       newNode->TYPE = NODE_RANGE;
+       
+        switch (current->TYPE)
         {
-            buffer << advance();
+            case TOKEN_INT : {newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT(); break; }           
+            case TOKEN_ID : {newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS(); break; }
+            default : {std::cout << "[!] Parser Error ! Unindentified token : " << typeToString(current->TYPE) << std::endl; exit(1);}
+        }
+        
+        proceed(TOKEN_TO);
+
+        switch (current->TYPE)
+        {
+            case TOKEN_INT : {newNode->LIMIT = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT(); break; }           
+            case TOKEN_ID : {newNode->LIMIT = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS(); break; }
+            default : {std::cout << "[!] Parser Error ! Unindentified token : " << typeToString(current->TYPE) << std::endl; exit(1);}
         }
 
-        Token * newToken = new Token();
-        newToken->TYPE = TOKEN_INT;
-        newToken->VALUE = buffer.str();
+        if (current->TYPE == TOKEN_AS)
+        {
+            proceed(TOKEN_AS);
+            if (current->TYPE != TOKEN_ID) 
+            {
+                std::cout << "[!] Parser Error : Give a variable name after AS" << std::endl;
+                exit(1);
+            }
+            newNode->SUPPLEMENT = parseID_RHS();
+        }
 
-        return newToken;
+        proceed(TOKEN_INDENT);
+	    if (current->TYPE != TOKEN_SEMICOLON)
+	    {
+		std::cout << "[!] Syntax Error " << std::endl;
+		exit(1);
+	    }
+	
+	    bufferScope = stoi (current->VALUE);
+
+	    if (bufferScope <= scopeLog.top())
+	    {
+		std::cout << "[!] Indentation Error : Expected further indent after the RANGE statement " << std::endl;
+		exit(1);
+	    }
+	    scopeLog.push(bufferScope);
+	    while (std::stoi(current->VALUE) == scopeLog.top())
+	    {
+		
+        proceed(TOKEN_SEMICOLON);
+
+	    switch (current->TYPE)
+            {
+                case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_KEYWORD : {newNode->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+	            case TOKEN_RANGE : {newNode->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+                default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
+            }
+
+        if (current->TYPE != TOKEN_SEMICOLON)
+            { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1); }
     }
-    std::vector<Token *> tokenize()
+	scopeLog.pop();
+    
+
+    return newNode;
+    }
+    AST_NODE * parseIF()
+    {	
+	proceed(TOKEN_KEYWORD);
+	
+	AST_NODE * newNODE = new AST_NODE();
+	newNODE->TYPE = NODE_IF;
+	newNODE->CHILD = parseCONDITION();
+
+	proceed(TOKEN_INDENT);
+	if (current->TYPE != TOKEN_SEMICOLON)
+	{
+		std::cout << "[!] Syntax Error " << std::endl;
+		exit(1);
+	}
+	
+	bufferScope = stoi (current->VALUE);
+	if (bufferScope <= scopeLog.top())
+	{
+		std::cout << "[!] Indentation Error : Expected further indent after the if statement " << std::endl;
+		exit(1);
+	}
+	scopeLog.push(bufferScope);
+	while (std::stoi(current->VALUE) == scopeLog.top())
+	{
+		
+        proceed(TOKEN_SEMICOLON);
+	    switch (current->TYPE)
+            {
+                case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_KEYWORD : {newNODE->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+                default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
+            }
+
+        if (current->TYPE != TOKEN_SEMICOLON)
+            { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1); }
+    }
+	scopeLog.pop();
+	if (std::stoi(current->VALUE) == scopeLog.top() && tokenSeek(1)->VALUE == "else")
+	{
+		proceed(TOKEN_SEMICOLON);
+		newNODE->SUPPLEMENT = parseELSE();
+
+	}	
+	
+	return newNODE;
+    }
+
+    AST_NODE * parseELSE()
     {
-        std::vector<Token *> tokens;
+    	proceed(TOKEN_KEYWORD);
+	
+	AST_NODE * newNODE = new AST_NODE();
+	newNODE->TYPE = NODE_ELSE;
+	
+
+	proceed(TOKEN_INDENT);
+
+	if (current->TYPE != TOKEN_SEMICOLON)
+	{
+		std::cout << "[!] Syntax Error " << std::endl;
+		exit(1);
+	}
+	
+	bufferScope = stoi (current->VALUE);
+	if (bufferScope <= scopeLog.top())
+	{
+		std::cout << "[!] Indentation Error : Expected further indent after the else statement " << std::endl;
+		exit(1);
+	}
+	scopeLog.push(bufferScope);
+	while (std::stoi(current->VALUE) == scopeLog.top())
+	{
+		
+        proceed(TOKEN_SEMICOLON);
+	    switch (current->TYPE)
+            {
+                case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_KEYWORD : {newNODE->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+                default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
+            }
+
+        if (current->TYPE != TOKEN_SEMICOLON)
+            { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1); }
+    	}
+	scopeLog.pop();
+		
+	
+	return newNODE;
+    }
+
+
+    AST_NODE * parsePRINT(bool recursiveCall = false) // current support is only for 32 bits numbers
+    {
+    	AST_NODE * newNode = new AST_NODE();
+	
+	if (!recursiveCall)
+	{
+	       	proceed (TOKEN_KEYWORD);
+		if (current->TYPE == TOKEN_DOT)
+		{
+			proceed(TOKEN_DOT);
+			if (current->TYPE != TOKEN_ID)
+			{
+				std::cout << "[!] SYNTAX ERROR : error in the display sub function call " << std::endl;
+				exit(1);
+			}
+             if (std::find(colorSupport.begin() , colorSupport.end() , current->VALUE) == colorSupport.end())
+            {
+                std::cout << "[!] SYNTAX ERROR : unknown display sub function called" << std::endl;
+                exit(1);
+            }
+			newNode->SUPPLEMENT = parseID_RHS();
+		}
+
+	}
         
-        bool notEOF = true;
-        bool newLine = true;
-	    int scopeCounter;
-        
-        while (cursor < size && notEOF)
+
+        switch (current->TYPE)
         {
             
-            checkAndSkip();
-            if(isalpha(current) || current == '_') // this is the logic for ids
-            {
-                tokens.push_back(tokenizeID_KEYWORD());
-                newLine = false;
-                continue;
+            case TOKEN_INT :
+            {              
+                newNode->TYPE = NODE_PRINT;
+                newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT();
+
+
+                break;
             }
-
-            if(isdigit (current)) // this is the logic for integer literals
+            
+            case TOKEN_ID :
             {
-                tokens.push_back(tokenizeINT());
+                newNode->TYPE = NODE_PRINT;
+                newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS();
 
-                continue;
+                break;
             }
-            switch(current)
+            case TOKEN_QUOTES :
             {
-                case '\n' :
-                {
-                    if (newLine)
-                    {
-                    	skipNew();
-                    }
-                    else
-                    {
-		            advance();
-		            scopeCounter = 0;
-		            // we have to make some changes here , such that 
-        		    // the scoping indentation would also support tabs
-	        	    // tldr , we need to find the whitespace equivalent of tabs
-                    // or convert the entire thing to a string
-		    
-		            while (current == '\n' || current == ' ')
-		            {
-			            if (current == '\n')
-				            scopeCounter = 0;
-		                else 
-				            scopeCounter++;
-			            advance();
-		            }
-			    
+                
+                proceed(TOKEN_QUOTES);
+        
+                newNode->TYPE = NODE_PRINT;
+                newNode->CHILD = parseSTRING();
 
-                    tokens.push_back(tokenizeSEMICOLON(scopeCounter));
-                    lineNumber++;
-                    characterNumber = 0;
-		            newLine = true;
-		            }
+                proceed(TOKEN_QUOTES);
 
-                    break;
-                }
-		        case ',' :
-		        {
-		            tokens.push_back(tokenizeSPECIAL(TOKEN_COMMA));
-		
-		            break;
-		        }
-                case '=' :
-                {
-		            if (seek(1) == '=')
-                    {
-			            advance();
-			            tokens.push_back(tokenizeSPECIAL(TOKEN_REL_EQUALS));
-			        }
-		            else
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_EQUALS));
-                
-		            break;
-                }
-
-		        case '!' :
-		        {
-			        if (seek(1) == '=')
-			        {
-			        advance();
-			        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_NOTEQUALS));
-			        break;
-			        }
-			        std::cout << "[!] Syntax Error : unexpected symbol : " << seek(1) << " expected  : = " << std::endl;
-			        exit(1);
-
-		        }
-
-		        case '<':
-		        {
-			        if (seek(1) == '=')
-			        {
-				        advance();
-				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_LESSTHANEQUALS));
-				        break;
-			        }
-			        else 
-			        {
-				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_LESSTHAN));
-				        break;
-			        }
-		        }
-		
-		        case '>':
-		        {
-			        if (seek(1) == '=')
-			        {
-				        advance();
-				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_GREATERTHANEQUALS));
-				        break;
-			        }
-			        else
-			        {
-				        tokens.push_back(tokenizeSPECIAL(TOKEN_REL_GREATERTHAN));
-				        break;
-			        }
-		        } 
-		        case '.':
-			{
-				tokens.push_back(tokenizeSPECIAL(TOKEN_DOT));
-				break;
-			}	
-
-		        case ':' :
-		        {
-
-			        tokens.push_back(tokenizeSPECIAL(TOKEN_INDENT));
-			
-        			break;
-		        }
-                
-                case '"' :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
-                    tokens.push_back(tokenizeSTRING());
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_QUOTES));
-                
-		        break;
-                }
-                
-	            case '(' :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_LEFT_PAREN));
-                    break;
-                }
-                case ')' :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_RIGHT_PAREN));
-                
-                    break;
-                }
-                
-                case '+' :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
-                
-                    break;
-                }
-                case '-' :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
-                
-                    break;
-                }case '*' :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
-                
-                    break;
-                }case '/' :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
-                
-                    break;
-                }case '%' :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_MATH));
-                
-                    break;
-                }
-                case '~':
-                {
-                    while (current != '\n' &&  current != '\0')
-                    {
-                        advance();
-                    }
-                    break;
-                }
-                case 0 :
-                {
-                    tokens.push_back(tokenizeSPECIAL(TOKEN_EOF));
-                 
-                    break;
-                }
-                
-                default:
-                {
-                    std::cout << "[!] LEXER ERROR : Unidentified symbol " << current <<std::endl ;
-                    std::cout << "LINE NUMBER : " << lineNumber << " CHARACTER NUMBER : " << characterNumber <<std::endl; 
-                    exit(1);
-                }
-                
-
-
+                break;
+            }
+            default :
+            {
+                std::cout << "[!] Parser Error ! Unindentified token : " << typeToString(current->TYPE) << std::endl;
+                exit(1); 
             }
         }
-        return tokens;
-    }
 
-    char peak (int offset = 0)
-    {
-        if (cursor + offset < size)
+
+        if (current->TYPE == TOKEN_COMMA)
         {
-            return source[cursor + offset];
+        proceed(TOKEN_COMMA);
+        newNode->SUB_STATEMENTS.push_back(parsePRINT(true));
         }
-        else{
-            return '\0';
+        
+        if (current->TYPE != TOKEN_SEMICOLON)
+        {
+        std::cout << "[!] Syntax Error " << std::endl;
+        exit(1);
         }
+        
+        return newNode;
+        
     }
 
-    private:
-    std::string source;
-    int cursor;
-    int size;
-    char current;
-    int lineNumber;
-    int characterNumber;
-    bool newLine;
+    AST_NODE * parseKEYWORD()
+    {
+        if (current->VALUE == "return")
+        {
+            return parseRETURN();
+        }
+        else if (current->VALUE == "print")
+        {
+            return parsePRINT();
+        }
+	    else if (current->VALUE == "get")
+	    {   
+	        return parseGET();
+	    }
+	    else if (current->VALUE == "if")
+	    {
+        	return parseIF();
+	    }
+        else { std::cout << "[!] SYNTAX ERROR , UNDEFINED KEYWORD " << std::endl; exit(1); }
+    }
 
+    AST_NODE * parse()
+    {
+        AST_NODE * ROOT = new AST_NODE();
+        ROOT->TYPE = NODE_ROOT;
+	    scopeLog.push(0);
+	
+
+        while(current->TYPE != TOKEN_EOF)
+        {
+            switch (current->TYPE)
+            {
+
+                case TOKEN_ID : {ROOT->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_KEYWORD : {ROOT->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+	            case TOKEN_RANGE : {ROOT->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+                default : { std::cout << "[!] SYNTAX ERROR " << std::endl; exit(1);}
+            }
+            
+	        bufferScope = std::stoi(current->VALUE);
+            proceed(TOKEN_SEMICOLON);
+
+	        if (bufferScope != scopeLog.top())
+	        { std::cout << "[!] Indentation Error : Inconsistent indent level 1" << std::endl; exit(1);  }
+        }
+
+        return ROOT;
+
+    }
+    private:
+    
+    int limit;
+    int index;
+    int bufferScope;
+    Token * current;
+    std::vector <Token *> parserTokens;
+    std::stack<int> scopeLog;
+
+    
 };
+
+
 
 #endif
