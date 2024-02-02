@@ -104,6 +104,16 @@ class Parser{
         
     };
 
+    std::vector <std::string> colorSupport = {
+        "red" ,
+        "green" ,
+        "yellow" ,
+        "blue" , 
+        "purple" ,
+        "cyan" ,
+        "white"
+          };
+
     Token * tokenSeek (int offset)
     {
 	if (index + offset < limit)
@@ -477,9 +487,30 @@ class Parser{
 
     AST_NODE * parsePRINT(bool recursiveCall = false) // current support is only for 32 bits numbers
     {
-    	if (!recursiveCall) proceed (TOKEN_KEYWORD);
+    	AST_NODE * newNode = new AST_NODE();
+	
+	if (!recursiveCall)
+	{
+	       	proceed (TOKEN_KEYWORD);
+		if (current->TYPE == TOKEN_DOT)
+		{
+			proceed(TOKEN_DOT);
+			if (current->TYPE != TOKEN_ID)
+			{
+				std::cout << "[!] SYNTAX ERROR : error in the display sub function call " << std::endl;
+				exit(1);
+			}
+             if (std::find(colorSupport.begin() , colorSupport.end() , current->VALUE) == colorSupport.end())
+            {
+                std::cout << "[!] SYNTAX ERROR : unknown display sub function called" << std::endl;
+                exit(1);
+            }
+			newNode->SUPPLEMENT = parseID_RHS();
+		}
+
+	}
         
-        AST_NODE * newNode = new AST_NODE();
+
         switch (current->TYPE)
         {
             
