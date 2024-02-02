@@ -129,7 +129,17 @@ class Generator{
 
     void generatePRINT(AST_NODE * STATEMENT , bool recursiveCall = false)
     {
-        
+        if (!recursiveCall)
+        {
+            if (STATEMENT->SUPPLEMENT) // CALL FOR PRINTING COLORS
+            {
+                sectionText << "mov rax , 1\n";
+                sectionText << "mov rdi , 1\n";
+                sectionText << "mov rsi , " + *STATEMENT->SUPPLEMENT->VALUE + "\n";
+                sectionText << "mov rdx , " + *STATEMENT->SUPPLEMENT->VALUE + "_L\n";
+                sectionText << "syscall \n\n";
+            }
+        }
         switch (STATEMENT->CHILD->TYPE)
         {
             case NODE_VARIABLE:
@@ -180,8 +190,8 @@ class Generator{
 
                 sectionText << "mov rax , 1\n";
                 sectionText << "mov rdi , 1\n";
-                sectionText << "mov rsi , SRef" + std::to_string(referenceNumber);
-                sectionText << "\nmov rdx , SRef" + std::to_string(referenceNumber);
+                sectionText << "mov rsi , SRef" + std::to_string(referenceNumber) + "\n";
+                sectionText << "mov rdx , SRef" + std::to_string(referenceNumber);
                 sectionText << "_L \nsyscall \n\n";
 
                 break;
@@ -200,7 +210,18 @@ class Generator{
         // we could check for a new line operator from the source code over here
         // instead of explicitly creating the newline
 	
-	if (!recursiveCall) sectionText << "call _newLine\n"; 
+	if (!recursiveCall) {
+
+            if (STATEMENT->SUPPLEMENT) // CALL FOR PRINTING COLORS
+            {
+                sectionText << "mov rax , 1\n";
+                sectionText << "mov rdi , 1\n";
+                sectionText << "mov rsi , reset\n";
+                sectionText << "mov rdx , reset_L\n";
+                sectionText << "syscall \n\n";
+            }
+        
+        sectionText << "call _newLine\n"; }
         
         
     }
@@ -556,8 +577,15 @@ class Generator{
         loopBranchCounter = 0;
         includes << "\%include \"asm/readINTEGER.asm\" \n";
 	    includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; 
+        includes << "\%include \"asm/colors.asm\" \n\n" ; 
         sectionData << "section .data\n\n";
         sectionText << "section .text\n\nglobal _start\n_start:\n\npush rbp\nmov rbp , rsp\n\n";
+        sectionText << "mov rax , 1\n";
+        
+        sectionText << "mov rdi , 1\n";
+        sectionText << "mov rsi , white\n";
+        sectionText << "mov rdx , white_L\n";
+        sectionText << "syscall \n\n";
         
         for (AST_NODE * CURRENT : AST_ROOT->SUB_STATEMENTS)
         {
