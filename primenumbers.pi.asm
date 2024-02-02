@@ -1,15 +1,21 @@
 %include "asm/readINTEGER.asm" 
 %include "asm/printINTEGER.asm" 
 
+%include "asm/colors.asm" 
+
 section .data
 
 SRef0 :
-db "Enter the lower and the upper limit of the range : "
+db "Enter the lower and the upper limit : "
 SRef0_L : equ $-SRef0
 
 SRef1 :
-db "This following is a prime number : "
+db "PRIME NUMBER : "
 SRef1_L : equ $-SRef1
+
+SRef2 :
+db "NOT PRIME    : "
+SRef2_L : equ $-SRef2
 
 section .text
 
@@ -18,6 +24,12 @@ _start:
 
 push rbp
 mov rbp , rsp
+
+mov rax , 1
+mov rdi , 1
+mov rsi , white
+mov rdx , white_L
+syscall 
 
 mov rax , 1
 mov rdi , 1
@@ -103,6 +115,12 @@ jmp _BRANCH_1_ELSE
 _BRANCH_1_IF:
 mov rax , 1
 mov rdi , 1
+mov rsi , red
+mov rdx , red_L
+syscall 
+
+mov rax , 1
+mov rdi , 1
 mov rsi , SRef1
 mov rdx , SRef1_L 
 syscall 
@@ -110,9 +128,37 @@ syscall
 mov eax , dword [rbp - 12]
 call _printINTEGER
 
+mov rax , 1
+mov rdi , 1
+mov rsi , reset
+mov rdx , reset_L
+syscall 
+
 call _newLine
 jmp _BRANCH_1_EXIT
 _BRANCH_1_ELSE:
+mov rax , 1
+mov rdi , 1
+mov rsi , green
+mov rdx , green_L
+syscall 
+
+mov rax , 1
+mov rdi , 1
+mov rsi , SRef2
+mov rdx , SRef2_L 
+syscall 
+
+mov eax , dword [rbp - 12]
+call _printINTEGER
+
+mov rax , 1
+mov rdi , 1
+mov rsi , reset
+mov rdx , reset_L
+syscall 
+
+call _newLine
 jmp _BRANCH_1_EXIT
 
 _BRANCH_1_EXIT:
