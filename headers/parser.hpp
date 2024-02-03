@@ -113,6 +113,9 @@ class Parser{
         "cyan" ,
         "white"
           };
+    std::vector <std::string> displayUtils = {
+        "inline"
+    };
 
     Token * tokenSeek (int offset)
     {
@@ -224,6 +227,13 @@ class Parser{
         {
             case TOKEN_INT : {newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT(); break;}
             case TOKEN_ID : {newNode->CHILD =  (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS(); break;}
+            case TOKEN_QUOTES :
+            {
+                proceed(TOKEN_QUOTES);
+                newNode->CHILD = parseSTRING();
+                proceed(TOKEN_QUOTES);
+                break;
+            }
 
             default : {
                 std::cout << "[!] SYNTAX ERROR : Unidentified Token : " << typeToString(current->TYPE) << std::endl;
@@ -249,7 +259,7 @@ class Parser{
     {
         if (current->TYPE != TOKEN_STRING)
         {
-            std::cout << "[!] Parser Error : the print statement does not have a string linked to it";
+            std::cout << "[!] Parser Error : Expected string , but did not found one";
             exit(1);
         }
 
@@ -539,6 +549,22 @@ class Parser{
                 newNode->CHILD = parseSTRING();
 
                 proceed(TOKEN_QUOTES);
+
+                if (current->TYPE == TOKEN_MATH && (current->VALUE == "times" || current->VALUE == "*"))
+                {
+                    proceed(TOKEN_MATH);
+                    switch (current->TYPE)
+                    {
+                    case TOKEN_INT : {newNode->LIMIT = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT(); break;}
+                    case TOKEN_ID : {newNode->LIMIT =  (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS(); break;}
+
+                    default : {
+                    std::cout << "[!] SYNTAX ERROR : Unidentified Token : " << typeToString(current->TYPE) << std::endl;
+                    exit(1);
+                    }
+                }
+
+                }
 
                 break;
             }
