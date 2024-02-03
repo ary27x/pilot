@@ -71,6 +71,15 @@ class Generator{
         }
         return -1;
     }
+    int stringVariableExists(std::string * TEST_STRING)
+    {
+        for (auto itr : stringVariableVector)
+        {
+            if (itr.first == *TEST_STRING)
+                 return itr.second;
+        }
+        return -1;
+    }
     int variableReferenceExists(std::string * TEST_STRING)
     {
         int counter = 0;
@@ -106,6 +115,7 @@ class Generator{
        }
 
        AST_NODE * VAR_ID = STATEMENT->CHILD;
+       if (stringVariableExists(VAR_ID->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : cannot use string variable in INPUT : " << *VAR_ID->VALUE; exit(1);}
        int offset;
        int elemOffset = variableReferenceExists(VAR_ID->VALUE);
 
@@ -142,20 +152,32 @@ class Generator{
         }
         switch (STATEMENT->CHILD->TYPE)
         {
-            case NODE_VARIABLE:
+            case NODE_VARIABLE: // PRITING STRING VARS
             {
+                
                 int offset;
                 int elemOffset = variableReferenceExists(STATEMENT->CHILD->VALUE);
                 if (elemOffset == -1)
                 {
-                    std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *STATEMENT->CHILD->VALUE << std::endl;
-                    exit(1);
+                    int stringReferenceNumber = stringVariableExists(STATEMENT->CHILD->VALUE);
+                    if (stringReferenceNumber == -1)
+                    {
+                        std::cout << "[!] SYNTAX ERROR : undefined varialble : " << *STATEMENT->CHILD->VALUE;
+                        exit(1);
+                    }
+                    sectionText << "mov rax , 1\n";
+                    sectionText << "mov rdi , 1\n";
+                    sectionText << "mov rsi , SRef" + std::to_string(stringReferenceNumber) + "\n";
+                    sectionText << "mov rdx , SRef" + std::to_string(stringReferenceNumber);
+                    sectionText << "_L \nsyscall \n\n";
+                    
                 }
-
+                else 
+                {
                 offset = (offsetCounter - elemOffset) * 4; // what to choose between dword and qword
                 sectionText << "mov eax , dword [rbp - " << std::to_string(offset);
                 sectionText << "]\ncall _printINTEGER\n\n";
-
+                }
 
                 break;
             }
@@ -188,12 +210,82 @@ class Generator{
                     stringReferenceCounter++;
                 }
 
+                 
+                std::string displayLoopSegment = "_DISPLAY_LOOP_" + std::to_string(displayLoopCounter);
+                std::string displayLoopSegmentLHS = "_DISPLAY_LOOP_" + std::to_string(displayLoopCounter) + "_LHS";                 
+                int lhsOffset;
+                int limitOffset;  
+                if (STATEMENT->LIMIT)
+                {
+                    
+                    displayLoopCounter++;
+
+
+                    switch (STATEMENT->LIMIT->TYPE)
+                    {
+                    case NODE_VARIABLE:
+                     {
+                      int elemOffset = variableReferenceExists(STATEMENT->LIMIT->VALUE);
+                      if (elemOffset == -1)
+                       {
+                        std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *STATEMENT->LIMIT->VALUE << std::endl;
+                        exit(1);
+                       }
+
+                      limitOffset = (offsetCounter - elemOffset) * 4; 
+                      break;
+                    }
+                    case NODE_INT :
+                    {
+                    variableVector.push_back(displayLoopSegment);
+                    sectionText << "sub rsp , 4\n";
+                    offsetCounter++;
+                    limitOffset = offsetCounter * 4;
+                    sectionText << "mov dword [ rbp - " << std::to_string(limitOffset) << " ] , " << *STATEMENT->LIMIT->VALUE << "\n";
+          
+                    break;
+                    }
+                    case NODE_MATH:
+                    {
+                    generateMATH(STATEMENT->LIMIT->SUB_STATEMENTS);
+                    variableVector.push_back(displayLoopSegment);
+                    sectionText << "sub rsp , 4\n";
+                    offsetCounter++;
+                    limitOffset = offsetCounter * 4;
+                    sectionText << "mov dword [ rbp - " << std::to_string(limitOffset) << " ] , eax\n";
+                    break;
+
+                    }
+                    }
+
+                    variableVector.push_back(displayLoopSegmentLHS);
+                    sectionText << "sub rsp , 4\n";
+                    offsetCounter++;
+                    lhsOffset = offsetCounter * 4;
+                    sectionText << "mov dword [ rbp - " << std::to_string(lhsOffset) << " ] , 1\n";
+          
+                    sectionText << displayLoopSegment << ":\n";
+                    sectionText << "mov eax , dword [ rbp - " << std::to_string(lhsOffset) << " ] \n";
+                    sectionText << "mov ebx , dword [ rbp - " << std::to_string(limitOffset) << " ] \n";
+                    sectionText << "cmp rax , rbx\n";
+                    sectionText << "jg "<< displayLoopSegment << "_EXIT \n";
+                    
+
+
+                }
+                
                 sectionText << "mov rax , 1\n";
                 sectionText << "mov rdi , 1\n";
                 sectionText << "mov rsi , SRef" + std::to_string(referenceNumber) + "\n";
                 sectionText << "mov rdx , SRef" + std::to_string(referenceNumber);
                 sectionText << "_L \nsyscall \n\n";
 
+                if (STATEMENT->LIMIT)
+                {
+                    sectionText << "add dword [ rbp - " << std::to_string(lhsOffset) << " ] , 1\n";
+                    sectionText << "jmp " << displayLoopSegment << "\n";
+                    sectionText << displayLoopSegment << "_EXIT:\n\n";
+                }
                 break;
             }
             
@@ -228,7 +320,6 @@ class Generator{
 
     
     
-    
     void generateRANGE(AST_NODE * STATEMENT)
     {
         std::string stringLeft = "@_LOOP_" + std::to_string(loopBranchCounter) + "_LEFT";
@@ -238,6 +329,8 @@ class Generator{
 
         if (STATEMENT->SUPPLEMENT)
         {
+        if (stringVariableExists(STATEMENT->SUPPLEMENT->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : cannot use string variable in RANGE : " << *STATEMENT->SUPPLEMENT->VALUE; exit(1);}
+        
         int offset;
         int elemOffset = variableReferenceExists(STATEMENT->SUPPLEMENT->VALUE);
         if (elemOffset == -1)
@@ -257,6 +350,8 @@ class Generator{
         {
             case NODE_VARIABLE:
             {
+        if (stringVariableExists(STATEMENT->CHILD->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : cannot use string variable in RANGE : " << *STATEMENT->CHILD->VALUE; exit(1);}
+
                 int offset;
                 int elemOffset = variableReferenceExists(STATEMENT->CHILD->VALUE);
                 if (elemOffset == -1)
@@ -296,6 +391,7 @@ class Generator{
         {
             case NODE_VARIABLE:
             {
+        if (stringVariableExists(STATEMENT->LIMIT->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : cannot use string variable in RANGE : " << *STATEMENT->LIMIT->VALUE; exit(1);}
                 
                 int offset;
                 int elemOffset = variableReferenceExists(STATEMENT->LIMIT->VALUE);
@@ -395,11 +491,13 @@ class Generator{
                 }
                 case NODE_VARIABLE : 
                 {
+                if (stringVariableExists(BUFFERPOINTER->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : cannot use string variable in if : " << *BUFFERPOINTER->VALUE; exit(1);}
+
                     int offset;
                     int elemOffset = variableReferenceExists(BUFFERPOINTER->VALUE);
                     if (elemOffset == -1)
                     {
-                        std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *BUFFERPOINTER->VALUE << std::endl;
+                        std::cout << "[!] SYNTAX ERROR : Undefined integer variable : " << *BUFFERPOINTER->VALUE << std::endl;
                         exit(1);
                     }
 
@@ -486,11 +584,13 @@ class Generator{
             case NODE_INT : {sectionText << "push " << *CURRENT->VALUE  << "\n"; break;}
             case NODE_VARIABLE : 
             {
+                if (stringVariableExists(CURRENT->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : cannot use string variable in math : " << *CURRENT->VALUE; exit(1);}
+
                 int offset_RHS;
                 int elemOffset_RHS = variableReferenceExists(CURRENT->VALUE);
                 if (elemOffset_RHS == -1)
                 {
-                    std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *CURRENT->VALUE << std::endl;
+                    std::cout << "[!] SYNTAX ERROR : Undefined integer variable : " << *CURRENT->VALUE << std::endl;
                     exit(1);
                 }
 
@@ -515,6 +615,10 @@ class Generator{
     {
         
         int offset;
+        if (VAR_ID->CHILD->TYPE != NODE_STRING)       
+        {
+        if (stringVariableExists(VAR_ID->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : Cannot cross link a string and an integer variable" << *VAR_ID->VALUE; exit(1);}
+
         int elemOffset = variableReferenceExists(VAR_ID->VALUE);
         if (elemOffset == -1)
         {
@@ -525,6 +629,7 @@ class Generator{
         }
 
         offset = (offsetCounter - elemOffset) * 4; 
+        }
 
         switch (VAR_ID->CHILD->TYPE)
         {
@@ -541,8 +646,9 @@ class Generator{
                 sectionText << "] , eax \n";
                 break;
             }
-            case NODE_VARIABLE:
+            case NODE_VARIABLE: //  we have to make some changes here so that stringvar = stringvar2 should work
             {
+
                 int offset_RHS;
                 int elemOffset_RHS = variableReferenceExists(VAR_ID->CHILD->VALUE);
                 if (elemOffset_RHS == -1)
@@ -560,6 +666,26 @@ class Generator{
                 break;
 
             }
+
+            case NODE_STRING:
+            {
+                int elemOffset = variableReferenceExists(VAR_ID->VALUE);
+                if (elemOffset != -1 ){std::cout << "[!] SYNTAX ERROR : Cannot cross link a string and an integer variable"; exit(1);;}
+                int referenceNumber = lookup(VAR_ID->CHILD->VALUE);
+
+                if (referenceNumber == -1)
+                {
+                    referenceNumber = stringReferenceCounter;
+            
+                    sectionDataDefine(VAR_ID->CHILD->VALUE , referenceNumber);
+                    stringReferences.push_back(VAR_ID->CHILD->VALUE);
+                    stringReferenceCounter++;
+                }
+
+                stringVariableVector[*VAR_ID->VALUE] = referenceNumber;
+
+                break;
+            }
             default : {
                 std::cout << "[!] Generation Error : unidentidfied linkage to variable assignment : " << nodeToString(VAR_ID->CHILD->TYPE) << std::endl;
                 exit(1);
@@ -569,12 +695,14 @@ class Generator{
 
     }
     
+
     void generate()
     {
         stringReferenceCounter = 0;
         offsetCounter = 0;
         branchCounter = 0;
         loopBranchCounter = 0;
+        displayLoopCounter = 0;
         includes << "\%include \"asm/readINTEGER.asm\" \n";
 	    includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; 
         includes << "\%include \"asm/colors.asm\" \n\n" ; 
@@ -591,12 +719,13 @@ class Generator{
         {
             switch(CURRENT->TYPE)
             {
-                case NODE_RETURN : {returnStream << generateRETURN(CURRENT); break;}
-                case NODE_PRINT : {generatePRINT(CURRENT); break;}
-		        case NODE_GET : {generateGET(CURRENT); break;}
+                case NODE_RETURN   : {returnStream << generateRETURN(CURRENT); break;}
+                case NODE_PRINT    : {generatePRINT(CURRENT); break;}
+		        case NODE_GET      : {generateGET(CURRENT); break;}
                 case NODE_VARIABLE : {generateVARIABLE(CURRENT); break;}
-                case NODE_IF : {generateIF(CURRENT); break;}
-                case NODE_RANGE : {generateRANGE(CURRENT); break;}
+                case NODE_IF       : {generateIF(CURRENT); break;}
+                case NODE_RANGE    : {generateRANGE(CURRENT); break;}
+
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CURRENT->TYPE); break;}
             }
         }
@@ -617,8 +746,10 @@ class Generator{
     int stringReferenceCounter;
     int branchCounter; 
     int loopBranchCounter;
+    int displayLoopCounter;
     std::vector <std::string *> stringReferences;
     std::vector <std::string> variableVector;
+    std::unordered_map <std::string , int> stringVariableVector;
     int offsetCounter;
     AST_NODE * AST_ROOT;
     std::ofstream assemblyFile;
