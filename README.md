@@ -29,6 +29,8 @@ The variable name has to start with either _ (underscore) or a character, but fu
 
     first is 10
     my_favorite_nubmer is 27
+    name is "aryan kumar"
+    my_dog is "joey"
 
 <hr>
 
@@ -41,6 +43,10 @@ Example :
 
     display "Hello World!"
     display "This is the value of 7 sqaured : " , 7 times 7
+    display "My name is : " , name 
+It also has the support for string repeat print , which goes as follows:
+
+    display "Hello There ! " times 3 ~ this would print "Hello There !" 3 times onto the scrren
 To print colored text onto the screen call the display sub function using the name of the color as follows:
 
     display.red    "this is a red text"
