@@ -29,13 +29,38 @@ mov rax , 0
 mov rdx , 0
 mov rcx , input_buffer
 
-_readINTERGER_loop:
+; we need to first step kinda manually 
+; that is , if the first byte as the address has -
+; then we would set the negative flag register (maybe rdx) to 1
+; (initially the register should have the value 0)
+; and then we would increment the pointer to the next value 
+; and at the end , when we are returning from the function
+; if the negative flag register is set , we would : 
+; imul rax , -1
+; and then return 
+; and we have to add parsing support for negative number variables
+; something like : number is -7
+
+mov rdx , 0 ; rdx register acts as the negative number flag
+movzx rbx , byte [rcx]
+cmp rbx , 45
+jne _readINTEGER_wrapper
+mov rdx , 1
+
+; i think the value of the rdx regsiter 
+; is somehow getting corrupted
+inc rcx
+
+_readINTEGER_wrapper:
+push rdx ; we are saving the value of the rdx register
+
+_readINTEGER_loop:
 
 movzx rbx , byte [rcx]
 cmp rbx , 57
-jg _readINTERGER_exit
+jg _readINTEGER_exit
 cmp rbx , 48
-jl _readINTERGER_exit
+jl _readINTEGER_exit
 
 
 sub rbx , 48
@@ -43,10 +68,20 @@ mul rdi
 add rax , rbx
 
 inc rcx
-jmp _readINTERGER_loop
+jmp _readINTEGER_loop
 
 
-_readINTERGER_exit:
+_readINTEGER_exit:
+; checking the status of the negative flag
+;mov rdx , 1
+pop rdx
+cmp rdx , 1
+jne _readINTEGER_EXIT_RESTORE
+;imul rax , -1 
+not rax
+add eax , 1
+;mov eax , 0
+_readINTEGER_EXIT_RESTORE:
 ;restoring the register values
 pop rbx
 pop rcx
