@@ -1,5 +1,6 @@
 %include "asm/printRAX.asm"
 %include "asm/newLine.asm"
+%include "asm/displayMinus.asm"
 %include "asm/mod.asm"
 %include "asm/div.asm"
 
@@ -11,6 +12,25 @@ _printINTEGER: ; THE ARGUMENT SHOULD BE IN THE RAX REGISTER BEFORE MAKING THE CA
 push rbx
 push rcx
 push rdx
+
+
+test eax , eax
+js _printINTEGER_NEGATION
+jmp _printINTEGER_PROCEED
+
+_printINTEGER_NEGATION:
+; since we are dealing with negative numbers
+; first we print the negative sign
+call _displayMinus
+; after we display the negative sign , we
+; perform the two's complement over the number
+; to get the corresponding positive value 
+not eax 
+add eax , 1
+; since we have the positive value in the
+; eax register , we proceed normally
+
+_printINTEGER_PROCEED:
 
 mov rbx , 10 ; we will be using the 10
 ; we will use the rdx for the counter , as the rcx register is used for the return values 
@@ -47,7 +67,6 @@ pop rax
 call _printRAX
 sub rdx , 1
 jmp _loopCallRAX
-
 
 _exit:
 
