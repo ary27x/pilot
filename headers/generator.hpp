@@ -267,7 +267,7 @@ class Generator{
                     sectionText << displayLoopSegment << ":\n";
                     sectionText << "mov eax , dword [ rbp - " << std::to_string(lhsOffset) << " ] \n";
                     sectionText << "mov ebx , dword [ rbp - " << std::to_string(limitOffset) << " ] \n";
-                    sectionText << "cmp rax , rbx\n";
+                    sectionText << "cmp eax , ebx\n";
                     sectionText << "jg "<< displayLoopSegment << "_EXIT \n";
                     
 
@@ -447,7 +447,7 @@ class Generator{
 
         sectionText << "mov eax , dword [ rbp - " << std::to_string(offsetLeft) << " ] \n";
         sectionText << "mov ebx , dword [ rbp - " << std::to_string(offsetRight) << " ] \n";
-        sectionText << "cmp rax , rbx\n";
+        sectionText << "cmp eax , ebx\n";
         sectionText << "jg _LOOP_" << std::to_string(loopBranchCounterCopy) << "_EXIT \n";
 
 
