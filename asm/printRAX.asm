@@ -8,9 +8,9 @@ section .text
 global _printRAX
 _printRAX:
 
-
-
 push rax
+push rdi 
+push rsi 
 push rdx
 add [integerBuffer] , rax
 
@@ -21,6 +21,8 @@ mov rdx , integerBuffer_L
 syscall
 
 pop rdx
+pop rsi
+pop rdi
 pop rax
 sub [integerBuffer] , rax
 ret
