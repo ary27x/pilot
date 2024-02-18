@@ -30,14 +30,14 @@ class Generator{
     {
     
     	if (returnStream.str().size() == 0)
-    	returnStream << "mov rax , 60\nmov rdi , 0\nsyscall";
+    	returnStream << "mov rax , 60\nmov rdi , 0\nsyscall\n\n";
       
         assemblyFile << includes.str();
         assemblyFile << sectionData.str();
         assemblyFile << sectionText.str();
         assemblyFile << stackReset.str();
         assemblyFile << returnStream.str();
-
+        assemblyFile << functionDefinitions.str();
         assemblyFile.close();
     }
 
@@ -53,7 +53,7 @@ class Generator{
         std::stringstream codeBuffer;
         codeBuffer << "mov rax , 60\n";
         codeBuffer << "mov rdi , " + *STATEMENT->CHILD->VALUE;
-        codeBuffer << "\nsyscall";
+        codeBuffer << "\nsyscall\n\n";
 
         return codeBuffer.str(); 
     }
@@ -116,6 +116,11 @@ class Generator{
 
        AST_NODE * VAR_ID = STATEMENT->CHILD;
        if (stringVariableExists(VAR_ID->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : cannot use string variable in INPUT : " << *VAR_ID->VALUE; exit(1);}
+       if (functionTable.find(*VAR_ID->VALUE) != functionTable.end())
+       {
+	       std::cout << "Cannot name the variable as same as previously defined function : " << *VAR_ID->VALUE;
+	       exit(1);
+       }
        int offset;
        int elemOffset = variableReferenceExists(VAR_ID->VALUE);
 
@@ -318,14 +323,13 @@ class Generator{
         
     }
 
-    
-    
+ 
     void generateRANGE(AST_NODE * STATEMENT)
     {
         std::string stringLeft = "@_LOOP_" + std::to_string(loopBranchCounter) + "_LEFT";
         std::string stringRight = "@_LOOP_" + std::to_string(loopBranchCounter) + "_RIGHT";
 
-	int supplementOffset = 0;
+	   int supplementOffset = 0;
 
         if (STATEMENT->SUPPLEMENT)
         {
@@ -460,6 +464,10 @@ class Generator{
                 case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
                 case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
                 case NODE_RANGE : {generateRANGE(CHILD_STATEMENT); break;}
+                case NODE_TILL     : {generateTILL(CHILD_STATEMENT); break;}
+                case NODE_CALL     : {generateCALL(CHILD_STATEMENT); break;}
+
+
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
             }
        }
@@ -470,15 +478,98 @@ class Generator{
 
     }
 
+
+   
+    void generateTILL (AST_NODE * STATEMENT)
+    {
+        int tillCounterCopy = tillCounter;
+        tillCounter++;
+        sectionText << "_TILL_" << std::to_string(tillCounterCopy) << "_ENTRY:\n";
+
+        AST_NODE * BUFFERPOINTER;
+        std::string registerPlaceHolder;
+        sectionText << "\n";
+       
+        for (int itr = 0 ; itr <= 2 ; itr++)
+        {
+            if (itr == 1) continue;
+            BUFFERPOINTER = STATEMENT->CHILD->SUB_STATEMENTS[itr];
+            switch (BUFFERPOINTER->TYPE)
+            {
+                case NODE_INT  : {sectionText << "push " << *BUFFERPOINTER->VALUE << "\n"; break;}
+                case NODE_MATH : 
+                {
+                    generateMATH(BUFFERPOINTER->SUB_STATEMENTS); 
+                    sectionText << "push rax\n"; 
+                    break;
+                }
+                case NODE_VARIABLE : 
+                {
+                if (stringVariableExists(BUFFERPOINTER->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : cannot use string variable in if : " << *BUFFERPOINTER->VALUE; exit(1);}
+
+                    int offset;
+                    int elemOffset = variableReferenceExists(BUFFERPOINTER->VALUE);
+                    if (elemOffset == -1)
+                    {
+                        std::cout << "[!] SYNTAX ERROR : Undefined integer variable : " << *BUFFERPOINTER->VALUE << std::endl;
+                        exit(1);
+                    }
+
+                    offset = (offsetCounter - elemOffset) * 4; 
+                    sectionText << "mov eax , dword [rbp - " << std::to_string(offset);
+                    sectionText << "]\npush rax\n";    
+                }
+            }
+        }
+
+        sectionText << "pop rbx\npop rax\n";
+        sectionText << "cmp eax , ebx \n";
+       
+        BUFFERPOINTER = STATEMENT->CHILD->SUB_STATEMENTS[1];
+       
+        sectionText << relationalReferences[BUFFERPOINTER->TYPE] << " _TILL_" << std::to_string(tillCounterCopy) <<"_MAIN\n";
+        sectionText << "jmp _TILL_" << std::to_string(tillCounterCopy) << "_EXIT\n\n";
+        sectionText << "_TILL_" << std::to_string(tillCounterCopy) <<"_MAIN:\n";
+
+       int branchCounterCopy = branchCounter;
+       if (STATEMENT->SUB_STATEMENTS.size() == 0)
+       {
+	       std::cout << "[!] Linkage Error : TILL has no statements linked to it" << std::endl; exit(1);
+       }
+       branchCounter++; 
+      
+       for (AST_NODE * CHILD_STATEMENT : STATEMENT->SUB_STATEMENTS)
+       {
+	    switch(CHILD_STATEMENT->TYPE)
+            {
+                case NODE_PRINT : {generatePRINT(CHILD_STATEMENT); break;}
+		        case NODE_GET : {generateGET(CHILD_STATEMENT); break;}
+                case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
+                case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
+                case NODE_RANGE : {generateRANGE(CHILD_STATEMENT); break;}
+                case NODE_TILL     : {generateTILL(CHILD_STATEMENT); break;}
+                case NODE_CALL     : {generateCALL(CHILD_STATEMENT); break;}
+
+
+                default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
+            }
+       }
+
+        sectionText << "jmp _TILL_"  << std::to_string(tillCounterCopy) << "_ENTRY\n"; 
+        sectionText << "_TILL_" << std::to_string(tillCounterCopy) << "_EXIT:\n";
+
+
+    }
+
     void generateIF(AST_NODE * STATEMENT)
     {
         AST_NODE * BUFFERPOINTER;
         std::string registerPlaceHolder;
         sectionText << "\n";
+       
         for (int itr = 0 ; itr <= 2 ; itr++)
         {
             if (itr == 1) continue;
-
             BUFFERPOINTER = STATEMENT->CHILD->SUB_STATEMENTS[itr];
             switch (BUFFERPOINTER->TYPE)
             {
@@ -533,12 +624,15 @@ class Generator{
                 case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
                 case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
                 case NODE_RANGE : {generateRANGE(CHILD_STATEMENT); break;}
+                case NODE_TILL     : {generateTILL(CHILD_STATEMENT); break;}
+                case NODE_CALL     : {generateCALL(CHILD_STATEMENT); break;}
+
+
 
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
             }
        }
        
-     
        sectionText << "jmp _BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT\n";     
        sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_ELSE:\n";
        
@@ -547,7 +641,6 @@ class Generator{
        
        sectionText << "jmp _BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT\n\n";     
        sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT:\n";
-       
        
     }
 
@@ -566,11 +659,85 @@ class Generator{
                 case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
                 case NODE_IF : {generateIF(CHILD_STATEMENT); break;}
                 case NODE_RANGE : {generateRANGE(CHILD_STATEMENT); break;}
+                case NODE_TILL     : {generateTILL(CHILD_STATEMENT); break;}
+                case NODE_CALL     : {generateCALL(CHILD_STATEMENT); break;}
+
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
             }
        }
     }
+
+    void generateFUNCTION (AST_NODE * STATEMENT)
+    {
+       if (functionTable.find(*STATEMENT->CHILD->VALUE) != functionTable.end())
+       {
+        std::cout << "[!] Error : Redefinition of already defined function : " << *STATEMENT->CHILD->VALUE;
+        exit(1);
+       }
+       
+       // check whether we already have a defined variable with the function name 
     
+       functionTable[*STATEMENT->CHILD->VALUE] = 0;
+       std::stringstream tempstream;
+       tempstream << sectionText.str();
+       int startSize = sectionText.str().size(); 
+       int initOffsetCounter = offsetCounter;
+       functionDefinitions << "\n" << *STATEMENT->CHILD->VALUE << ":\n";    
+       functionDefinitions << "push rbp\n";
+       functionDefinitions << "mov rbp , rsp\n";
+       
+        for (AST_NODE * CHILD_STATEMENT : STATEMENT->SUB_STATEMENTS)
+       {
+	    switch(CHILD_STATEMENT->TYPE)
+            {
+                case NODE_PRINT    : {generatePRINT(CHILD_STATEMENT); break;}
+		        case NODE_GET      : {generateGET(CHILD_STATEMENT); break;}
+                case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
+                case NODE_IF       : {generateIF(CHILD_STATEMENT); break;}
+                case NODE_RANGE    : {generateRANGE(CHILD_STATEMENT); break;}
+                case NODE_TILL     : {generateTILL(CHILD_STATEMENT); break;}
+                case NODE_CALL     : {generateCALL(CHILD_STATEMENT); break;}
+
+                default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
+            }
+       }
+       
+       int currentChar = 1;
+       for (char data : sectionText.str()) // plucking the function code from sectionText and putting it in functionDefinitions stream
+       {
+	       if (currentChar <= startSize)
+	       {
+		       currentChar++;
+		       continue;
+	       }
+	       functionDefinitions << data;
+       }
+
+       sectionText.str(""); // re setting the sectionText
+       sectionText << tempstream.str();
+
+       functionDefinitions << "add rsp , " << std::to_string((offsetCounter - initOffsetCounter)*4) << "\n";
+       functionDefinitions << "mov rsp , rbp\n";
+       functionDefinitions << "pop rbp\n";
+       functionDefinitions << "ret\n\n";
+
+       for (int temp = 0 ; temp < offsetCounter - initOffsetCounter; temp++) // implementing closures
+            variableVector.pop_back();
+       
+       functionTable[*STATEMENT->CHILD->VALUE] = offsetCounter - initOffsetCounter;
+       offsetCounter = initOffsetCounter;
+       
+    }
+    
+    void generateCALL (AST_NODE * STATEMENT)
+    {
+        if (functionTable.find(*STATEMENT->CHILD->VALUE) == functionTable.end())
+        {
+                std::cout << "[!] Error : Undefined Function : " << *STATEMENT->CHILD->VALUE;
+                exit(1);
+        }
+        sectionText << "call " << *STATEMENT->CHILD->VALUE << "\n";
+    }
     void generateMATH(std::vector <AST_NODE * >& operations )
     {
         std::vector <AST_NODE * > postfixOperations = infixToPostfix(operations);
@@ -615,6 +782,11 @@ class Generator{
     {
         
         int offset;
+	if (functionTable.find(*VAR_ID->VALUE) != functionTable.end())
+	{
+		std::cout << "[!] Cannot same the variable same as already defined function : " << *VAR_ID->VALUE;
+		exit(1);
+	}
         if (VAR_ID->CHILD->TYPE != NODE_STRING)       
         {
         if (stringVariableExists(VAR_ID->VALUE) != -1) {std::cout << "[!] SYNTAX ERROR : Cannot cross link a string and an integer variable" << *VAR_ID->VALUE; exit(1);}
@@ -703,6 +875,7 @@ class Generator{
         branchCounter = 0;
         loopBranchCounter = 0;
         displayLoopCounter = 0;
+        tillCounter = 0;
         includes << "\%include \"asm/readINTEGER.asm\" \n";
 	    includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; 
         includes << "\%include \"asm/colors.asm\" \n\n" ; 
@@ -714,7 +887,7 @@ class Generator{
         sectionText << "mov rsi , white\n";
         sectionText << "mov rdx , white_L\n";
         sectionText << "syscall \n\n";
-        
+
         for (AST_NODE * CURRENT : AST_ROOT->SUB_STATEMENTS)
         {
             switch(CURRENT->TYPE)
@@ -725,6 +898,9 @@ class Generator{
                 case NODE_VARIABLE : {generateVARIABLE(CURRENT); break;}
                 case NODE_IF       : {generateIF(CURRENT); break;}
                 case NODE_RANGE    : {generateRANGE(CURRENT); break;}
+                case NODE_TILL     : {generateTILL(CURRENT); break;}
+                case NODE_FUNCTION : {generateFUNCTION(CURRENT); break;}
+                case NODE_CALL     : {generateCALL(CURRENT); break;}
 
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CURRENT->TYPE); break;}
             }
@@ -741,15 +917,18 @@ class Generator{
     std::stringstream includes;
     std::stringstream sectionData;
     std::stringstream sectionText;
+    std::stringstream functionDefinitions;
     std::stringstream stackReset;
     std::stringstream returnStream;
     int stringReferenceCounter;
     int branchCounter; 
     int loopBranchCounter;
     int displayLoopCounter;
+    int tillCounter;
     std::vector <std::string *> stringReferences;
     std::vector <std::string> variableVector;
     std::unordered_map <std::string , int> stringVariableVector;
+    std::unordered_map <std::string , int> functionTable;
     int offsetCounter;
     AST_NODE * AST_ROOT;
     std::ofstream assemblyFile;
