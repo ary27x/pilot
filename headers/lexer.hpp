@@ -20,6 +20,9 @@ enum type
     TOKEN_STRING,
     TOKEN_QUOTES,
     TOKEN_COMMA,
+    TOKEN_FUNCTION,
+    TOKEN_CALL,
+    TOKEN_ARGUMENTS,
     TOKEN_REL_EQUALS,
     TOKEN_REL_NOTEQUALS,
     TOKEN_REL_LESSTHAN,
@@ -27,9 +30,11 @@ enum type
     TOKEN_REL_GREATERTHAN,
     TOKEN_REL_GREATERTHANEQUALS,
     TOKEN_MATH,
-    TOKEN_RANGE, 
+    TOKEN_RANGE,
+    TOKEN_TILL, 
     TOKEN_TO,
     TOKEN_AS,
+    TOKEN_REFERENCE,
     TOKEN_INDENT,
     TOKEN_DOT,
     TOKEN_EOF
@@ -56,6 +61,9 @@ std::string typeToString(enum type TYPE)
         case TOKEN_STRING : return "TOKEN_STRING";
         case TOKEN_QUOTES : return "TOKEN_QUOTES";
     	case TOKEN_COMMA : return "TOKEN_COMMA";
+	case TOKEN_FUNCTION : return "TOKEN_FUNCTION";
+        case TOKEN_CALL : return "TOKEN_CALL";
+	case TOKEN_ARGUMENTS : return "TOKEN_ARGUMENTS";
 	case TOKEN_REL_EQUALS : return "TOKEN_REL_EQUALS";
 	case TOKEN_REL_NOTEQUALS : return "TOKEN_REL_NOTEQUALS";				   
 	case TOKEN_REL_LESSTHAN : return "TOKEN_REL_LESSTHAN";
@@ -64,8 +72,10 @@ std::string typeToString(enum type TYPE)
         case TOKEN_REL_GREATERTHANEQUALS : return "TOKEN_REL_GREATERTHANEQUALS";	
 	case TOKEN_MATH : return "TOKEN_MATH";
 	case TOKEN_RANGE : return "TOKEN_RANGE";
+        case TOKEN_TILL : return "TOKEN_TILL";
         case TOKEN_TO : return "TOKEN_TO";
 	case TOKEN_AS : return "TOKEN_AS";
+	case TOKEN_REFERENCE : return "TOKEN_REFERENCE";
         case TOKEN_INDENT : return "TOKEN_INDENT";
     	case TOKEN_EOF : return "TOKEN_EOF";
         case TOKEN_DOT : return "TOKEN_DOT";
@@ -144,8 +154,12 @@ class Lexer
 	{"times" , TOKEN_MATH},
 	{"by" , TOKEN_MATH},
 	{"range" , TOKEN_RANGE},
+	{"till" , TOKEN_TILL},
 	{"to" , TOKEN_TO},
-	{"as" , TOKEN_AS}
+	{"as" , TOKEN_AS},
+	{"function" , TOKEN_FUNCTION},
+	{"call" , TOKEN_CALL},
+	
     	
     };
 
@@ -327,6 +341,11 @@ class Lexer
 			        exit(1);
 
 		        }
+			case '@' :
+			{
+				tokens.push_back(tokenizeSPECIAL(TOKEN_REFERENCE));
+				break;
+			}
 
 		        case '<':
 		        {
@@ -365,10 +384,17 @@ class Lexer
 
 		        case ':' :
 		        {
-
+                                if (seek(1) == ':')
+				{
+					advance();
+					tokens.push_back(tokenizeSPECIAL(TOKEN_ARGUMENTS));
+					break;
+				}
+				else
+				{
 			        tokens.push_back(tokenizeSPECIAL(TOKEN_INDENT));
-			
         			break;
+				}
 		        }
                 
                 case '"' :
