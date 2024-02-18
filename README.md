@@ -77,9 +77,77 @@ Scoping in python is done using identation , not curly brace (similar to python)
 Statements with the same indentation have the same scope
 <hr>
 
-**LOOP**
+**FUNCTIONS**
 
-Pilot currently supports "range" loop which follows the following syntax:
+The general syntax of a function in pilot is as follows:
+
+    function <function_name> :
+        ~ code
+**Functions can only be defined in the main scope**
+
+Example :
+
+    function sayHelloThrice:
+        display.red   "Hello There!!"
+        display.green "Hello There!!"
+        display.blue  "Hello There!!"
+
+To call a function , we have the following syntax :
+
+    call <functionName>
+**Functions have to be defined before they called.**
+
+Example :
+
+    call sayHelloThrice
+(Function can be called from any scope)
+
+
+
+**CLOSURES IN FUNCTIONS**
+
+Variables which are defined inside of the function are not global , and are destroyed when the function goes out of scope.
+
+Example:
+
+The below code would work as the variable is in the same scope as the function
+
+    function closureTest:
+        favoriteNumber is 27
+        display "This is my favorite number : " , favoriteNumber
+    
+    call closureTest
+The below code would raise an error , as the favoriteNumber variable is local to the function closureTest , but we are trying to access it from the global scope
+    
+    function closureTest:
+        favoriteNumber is 27
+        display "This is my favorite number : " , favoriteNumber
+    
+    call closureTest
+    display "this is from the global scope : " , favoriteNumber ~ this should not work and will raise an error  
+
+<hr>
+
+
+**TILL LOOP**
+
+Till loop has the following syntax:
+
+    till <condition>:
+        ~ code 
+
+An example of the following syntax:
+
+    till number < 10:
+        display "This is the value of the number : " , number
+        number is number + 1 ~ this is a very important step
+
+**Till loops should be used carefully , as forgetting to update the value of the variable in the condition field would lead to an infinite loop**
+<hr>
+
+**RANGE LOOP**
+
+Range loop has the following syntax:
 
     range <value> to <value>:
         display "This is from the loop !"
