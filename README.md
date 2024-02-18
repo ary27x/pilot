@@ -29,6 +29,7 @@ The variable name has to start with either _ (underscore) or a character, but fu
 
     first is 10
     my_favorite_nubmer is 27
+    negativeNumber is -5
     name is "aryan kumar"
     my_dog is "joey"
 
