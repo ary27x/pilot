@@ -16,6 +16,8 @@ enum NODE_TYPE
     NODE_GET,
     NODE_INT,
     NODE_STRING,
+    NODE_FUNCTION,
+    NODE_CALL,
     NODE_IF, 
     NODE_ELSE,
     NODE_CONDITION,
@@ -26,6 +28,7 @@ enum NODE_TYPE
     NODE_REL_GREATERTHAN,
     NODE_REL_GREATERTHANEQUALS,
     NODE_RANGE,
+    NODE_TILL,
     NODE_MATH,
     NODE_OP_ADD,
     NODE_OP_SUB,
@@ -46,6 +49,8 @@ std::string nodeToString(enum NODE_TYPE TYPE)
  	case NODE_GET : return "NODE_GET";
         case NODE_INT : return "NODE_INT";
         case NODE_STRING : return "NODE_STRING";
+        case NODE_FUNCTION : return "NODE_FUNCTION";
+        case NODE_CALL : return "NODE_CALL";
 	case NODE_IF : return "NODE_IF";
 	case NODE_ELSE : return "NODE_ELSE";
 	case NODE_CONDITION : return "NODE_CONDITION";		       
@@ -56,6 +61,7 @@ std::string nodeToString(enum NODE_TYPE TYPE)
     	case NODE_REL_GREATERTHAN : return "NODE_REL_GREATERTHAN";
 	case NODE_REL_GREATERTHANEQUALS : return "NODE_REL_GREATERTHANEQUALS";
 	case NODE_RANGE : return "NODE_RANGE";
+	case NODE_TILL : return "NODE_TILL";
 	case NODE_MATH : return "NODE_MATH";	
     	case NODE_OP_ADD : return "NODE_OP_ADD";
     	case NODE_OP_SUB : return "NODE_OP_SUB";
@@ -140,8 +146,12 @@ class Parser{
             return current;
         }
     }
-    AST_NODE * parseINT()
+    AST_NODE * parseINT(bool negativeNumber = false)
     {
+        if (negativeNumber)
+        {
+            proceed(TOKEN_MATH);
+        }
         if (current->TYPE != TOKEN_INT)
         {
             std::cout << "[!] SYNTAX ERROR " << std::endl;
@@ -150,6 +160,14 @@ class Parser{
 
         AST_NODE * newNode = new AST_NODE();
         newNode->TYPE = NODE_INT;
+
+        if (negativeNumber)
+	{
+		int toNegate = std::stoi(current->VALUE);
+            	toNegate *= -1;
+		current->VALUE = std::to_string(toNegate);
+	}
+
         newNode->VALUE = &current->VALUE;
         proceed(TOKEN_INT);
         return newNode;
@@ -175,6 +193,62 @@ class Parser{
         newNode->TYPE = operatorMap[current->VALUE];
         proceed(TOKEN_MATH);
         return newNode;
+    }
+
+    AST_NODE * parseCALL()
+    {
+        proceed(TOKEN_CALL);
+        AST_NODE * newNode = new AST_NODE();
+        newNode->TYPE = NODE_CALL;
+        newNode->CHILD = parseID_RHS();
+        return newNode;
+    }
+
+    AST_NODE * parseFUNCTION()
+    {
+    proceed(TOKEN_FUNCTION);
+    AST_NODE * newNode = new AST_NODE();
+    newNode->TYPE = NODE_FUNCTION;
+    newNode->CHILD = parseID_RHS();
+    
+     proceed(TOKEN_INDENT);
+	    if (current->TYPE != TOKEN_SEMICOLON)
+	    {
+		std::cout << "[!] Syntax Error " << std::endl;
+		exit(1);
+	    }
+	
+	    bufferScope = stoi (current->VALUE);
+
+	    if (bufferScope <= scopeLog.top())
+	    {
+		std::cout << "[!] Indentation Error : Expected further indent after the RANGE statement " << std::endl;
+		exit(1);
+	    }
+	    scopeLog.push(bufferScope);
+	    while (std::stoi(current->VALUE) == scopeLog.top())
+	    {
+		
+        proceed(TOKEN_SEMICOLON);
+
+	    switch (current->TYPE)
+            {
+                case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_KEYWORD : {newNode->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+	            case TOKEN_RANGE : {newNode->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+		        case TOKEN_TILL : {newNode->SUB_STATEMENTS.push_back(parseTILL()); break;}
+                case TOKEN_CALL : {newNode->SUB_STATEMENTS.push_back(parseCALL()); break;}
+
+                default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
+            }
+
+        if (current->TYPE != TOKEN_SEMICOLON)
+            { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1); }
+    }
+	scopeLog.pop();
+    
+
+    return newNode;
     }
 
     AST_NODE * parseMATH()
@@ -227,6 +301,15 @@ class Parser{
         {
             case TOKEN_INT : {newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT(); break;}
             case TOKEN_ID : {newNode->CHILD =  (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS(); break;}
+            case TOKEN_MATH: 
+			    {
+				    if (current->VALUE != "-")
+				    {
+					    std::cout << "[!} Syntax Error : Unindentified Token : " << typeToString(current->TYPE) << std::endl;
+					    exit(1);
+				    }
+				    newNode->CHILD = parseINT(true); break;
+			    }
             case TOKEN_QUOTES :
             {
                 proceed(TOKEN_QUOTES);
@@ -335,6 +418,55 @@ class Parser{
       
     }
 
+    AST_NODE * parseTILL()
+    {
+    proceed (TOKEN_TILL);
+
+    AST_NODE * newNode = new AST_NODE();
+    newNode->TYPE = NODE_TILL;
+    newNode->CHILD = parseCONDITION();
+
+     proceed(TOKEN_INDENT);
+	    if (current->TYPE != TOKEN_SEMICOLON)
+	    {
+		std::cout << "[!] Syntax Error " << std::endl;
+		exit(1);
+	    }
+	
+	    bufferScope = stoi (current->VALUE);
+
+	    if (bufferScope <= scopeLog.top())
+	    {
+		std::cout << "[!] Indentation Error : Expected further indent after the RANGE statement " << std::endl;
+		exit(1);
+	    }
+	    scopeLog.push(bufferScope);
+	    while (std::stoi(current->VALUE) == scopeLog.top())
+	    {
+		
+        proceed(TOKEN_SEMICOLON);
+
+	    switch (current->TYPE)
+            {
+                case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_KEYWORD : {newNode->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+	            case TOKEN_RANGE : {newNode->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+		        case TOKEN_TILL : {newNode->SUB_STATEMENTS.push_back(parseTILL()); break;}
+                case TOKEN_CALL : {newNode->SUB_STATEMENTS.push_back(parseCALL()); break;}
+
+                default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
+            }
+
+        if (current->TYPE != TOKEN_SEMICOLON)
+            { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1); }
+    }
+	scopeLog.pop();
+    
+
+    return newNode;
+    }
+
+
     AST_NODE * parseRANGE()
     {
        proceed(TOKEN_RANGE);
@@ -393,6 +525,9 @@ class Parser{
                 case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID()); break;}
                 case TOKEN_KEYWORD : {newNode->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
 	            case TOKEN_RANGE : {newNode->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+		        case TOKEN_TILL : {newNode->SUB_STATEMENTS.push_back(parseTILL()); break;}
+                case TOKEN_CALL : {newNode->SUB_STATEMENTS.push_back(parseCALL()); break;}
+                
                 default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
             }
 
@@ -434,6 +569,11 @@ class Parser{
             {
                 case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back(parseID()); break;}
                 case TOKEN_KEYWORD : {newNODE->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+                 case TOKEN_RANGE : {newNODE->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+		        case TOKEN_TILL : {newNODE->SUB_STATEMENTS.push_back(parseTILL()); break;}
+                case TOKEN_CALL : {newNODE->SUB_STATEMENTS.push_back(parseCALL()); break;}
+
+
                 default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
             }
 
@@ -482,6 +622,9 @@ class Parser{
             {
                 case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back(parseID()); break;}
                 case TOKEN_KEYWORD : {newNODE->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
+                case TOKEN_RANGE : {newNODE->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+		        case TOKEN_TILL : {newNODE->SUB_STATEMENTS.push_back(parseTILL()); break;}
+                case TOKEN_CALL : {newNODE->SUB_STATEMENTS.push_back(parseCALL()); break;}
                 default : { std::cout << "[!] SYNTAX ERROR " << typeToString(current->TYPE) << std::endl; exit(1);}
             }
 
@@ -627,7 +770,10 @@ class Parser{
 
                 case TOKEN_ID : {ROOT->SUB_STATEMENTS.push_back(parseID()); break;}
                 case TOKEN_KEYWORD : {ROOT->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
-	            case TOKEN_RANGE : {ROOT->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+	        case TOKEN_RANGE : {ROOT->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
+		case TOKEN_TILL : {ROOT->SUB_STATEMENTS.push_back(parseTILL()); break;}
+		case TOKEN_FUNCTION : {ROOT->SUB_STATEMENTS.push_back(parseFUNCTION()); break;}
+		case TOKEN_CALL : {ROOT->SUB_STATEMENTS.push_back(parseCALL()); break;}
                 default : { std::cout << "[!] SYNTAX ERROR " << std::endl; exit(1);}
             }
             
