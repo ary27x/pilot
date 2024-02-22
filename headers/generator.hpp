@@ -80,6 +80,25 @@ class Generator{
         }
         return -1;
     }
+    
+    int arrayIndexHandler (AST_NODE * SUBSCRIPT)
+    {
+        if (arrayTable.find(*SUBSCRIPT->VALUE) == arrayTable.end())
+        {
+            std::cout << "[!] Syntax Error : Trying to access the element of an undefined array : " << *SUBSCRIPT->VALUE;
+            exit(1);
+            
+        }
+        
+       // todo : CHECK FOR OUT OF BOUNDS INDEX	
+       
+       int startOffset = arrayTable[*SUBSCRIPT->VALUE].first;
+       	 
+            
+            
+        
+    }
+    
     int variableReferenceExists(std::string * TEST_STRING)
     {
         int counter = 0;
@@ -159,7 +178,35 @@ class Generator{
         {
             case NODE_VARIABLE: // PRITING STRING VARS
             {
-                
+                if (STATEMENT->CHILD->SUPPLEMENT)
+                {
+                   if (arrayTable.find(*STATEMENT->CHILD->VALUE) == arrayTable.end())
+                   {
+                   std::cout << "[!] Error : Undefined Array : " << *STATEMENT->CHILD->VALUE;
+                   exit(1);
+                   }
+                   
+                   int baseArrayAddress = arrayTable[*STATEMENT->CHILD->VALUE].first;
+                   int elementOffset ;
+                   switch (STATEMENT->CHILD->SUPPLEMENT->TYPE)
+                   {
+                      case NODE_INT:
+                      {
+                        elementOffset = baseArrayAddress + std::stoi(*STATEMENT->CHILD->SUPPLEMENT->VALUE);
+			sectionText << "mov eax , dword [rbp - "<< std::to_string(elementOffset * 4) <<"]\n"; 
+			sectionText << "call _printINTEGER \n\n";
+                        break;
+		      }
+		      case NODE_VARIABLE:
+		      {
+		      std::cout << "Sorry , but variable index is actually not supported as of now... " << std::endl;
+		      exit(1);
+		      //MOV DWORD [RBP - RAX] , 5
+		      break;
+		      }
+                   }
+                break;
+                }
                 int offset;
                 int elemOffset = variableReferenceExists(STATEMENT->CHILD->VALUE);
                 if (elemOffset == -1)
@@ -675,9 +722,20 @@ class Generator{
         exit(1);
        }
        
+       if (stringVariableExists(STATEMENT->VALUE) != -1) 
+       {std::cout << "[!] Error : Cannot define a function with the name of an already defined string variable : " << *STATEMENT->VALUE; 
+       exit(1);
+       }
+       
+       if (variableReferenceExists(STATEMENT->VALUE) != -1)
+       {
+       std::cout << "[!] Error : Cannot define a function with the name of an already defined integer variable : " << *STATEMENT->VALUE;
+       exit(1); 
+       }
+
        // check whether we already have a defined variable with the function name 
     
-       functionTable[*STATEMENT->CHILD->VALUE] = 0;
+       functionTable[*STATEMENT->CHILD->VALUE] = STATEMENT->SUB_VALUES.size(); // the value should be the number of arguments the function expects
        std::stringstream tempstream;
        tempstream << sectionText.str();
        int startSize = sectionText.str().size(); 
@@ -685,19 +743,35 @@ class Generator{
        functionDefinitions << "\n" << *STATEMENT->CHILD->VALUE << ":\n";    
        functionDefinitions << "push rbp\n";
        functionDefinitions << "mov rbp , rsp\n";
-       
+      
+       int argumentNumber = 0;
+       for (AST_NODE * ARGUMENT : STATEMENT->SUB_VALUES)
+       {
+	       // the fact that there could be parameter of the name of same name defined in the 
+	       // global scope , which could cause errors
+	       // going over the variable Vector in the opposite direction would take care of it
+               sectionText << "mov rax , " << registerArgumentHolders[argumentNumber] << "\n";
+	       sectionText << "sub rsp , 4\n";
+	       variableVector.push_back(*ARGUMENT->VALUE);
+	       offsetCounter++;
+	       int offset = offsetCounter;
+	       sectionText << "mov dword [rbp - "<< std::to_string(offset * 4) << "] , eax \n";
+	       argumentNumber++;
+       }
+
         for (AST_NODE * CHILD_STATEMENT : STATEMENT->SUB_STATEMENTS)
        {
 	    switch(CHILD_STATEMENT->TYPE)
             {
                 case NODE_PRINT    : {generatePRINT(CHILD_STATEMENT); break;}
-		        case NODE_GET      : {generateGET(CHILD_STATEMENT); break;}
+		case NODE_GET      : {generateGET(CHILD_STATEMENT); break;}
                 case NODE_VARIABLE : {generateVARIABLE(CHILD_STATEMENT); break;}
                 case NODE_IF       : {generateIF(CHILD_STATEMENT); break;}
                 case NODE_RANGE    : {generateRANGE(CHILD_STATEMENT); break;}
                 case NODE_TILL     : {generateTILL(CHILD_STATEMENT); break;}
                 case NODE_CALL     : {generateCALL(CHILD_STATEMENT); break;}
-
+		// add support for return types
+		// put the return value in the eax register
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CHILD_STATEMENT->TYPE); break;}
             }
        }
@@ -724,7 +798,6 @@ class Generator{
        for (int temp = 0 ; temp < offsetCounter - initOffsetCounter; temp++) // implementing closures
             variableVector.pop_back();
        
-       functionTable[*STATEMENT->CHILD->VALUE] = offsetCounter - initOffsetCounter;
        offsetCounter = initOffsetCounter;
        
     }
@@ -736,6 +809,49 @@ class Generator{
                 std::cout << "[!] Error : Undefined Function : " << *STATEMENT->CHILD->VALUE;
                 exit(1);
         }
+	// check for argument and parameter consistency
+	if (STATEMENT->SUB_VALUES.size() != functionTable[*STATEMENT->CHILD->VALUE])
+	{
+		std::cout << "[!] Error : The number of arguments are not equal to the number of parameters expected by the function : " << *STATEMENT->CHILD->VALUE << std::endl;
+		std::cout << "The function expected " << functionTable[*STATEMENT->CHILD->VALUE] << " arguments , but the number of arguments provided in the call were: " << STATEMENT->SUB_VALUES.size() << std::endl;
+		exit(1);
+	}
+        int registerHolderCounter = 0;
+	for (AST_NODE * ARGUMENT : STATEMENT->SUB_VALUES)
+	{
+		if (registerHolderCounter == 6)
+		{
+			std::cout << "Sorry , no more than 6 arguments are allowed in the current version of pilot..." << std::endl;
+			exit(1);
+		}
+		switch (ARGUMENT->TYPE)
+		{
+			case NODE_INT :
+				{
+					sectionText << "mov rax , " << *ARGUMENT->VALUE << "\n";
+					sectionText << "mov " << registerArgumentHolders[registerHolderCounter] << " , rax\n";
+					break;
+				}
+
+		        case NODE_VARIABLE :
+				{
+					int offset = variableReferenceExists(ARGUMENT->VALUE);
+					if (offset == -1)
+					{
+						std::cout << "[!] Error : undefined variable : " << *ARGUMENT->VALUE << std::endl;
+						exit(1);
+					}
+					offset = offsetCounter - offset;
+					offset *= 4;
+					sectionText << "mov eax , dword [rbp - " << std::to_string(offset) << "]\n";
+				        sectionText << "mov " << registerArgumentHolders[registerHolderCounter] << " , rax\n";	
+					break;
+
+
+				}	
+		}
+		registerHolderCounter++;
+	}
         sectionText << "call " << *STATEMENT->CHILD->VALUE << "\n";
     }
     void generateMATH(std::vector <AST_NODE * >& operations )
@@ -776,6 +892,84 @@ class Generator{
         }
 
         sectionText << "pop rax\n";
+    }
+
+    void generateARRAY (AST_NODE * STATEMENT)
+    {
+       // CURRENTLY WE CANNOT RE DEFINE THE ARRAY , THIS IS A BEHAVIOUR WHICH WE SHOULD CHANGE 
+       if (arrayTable.find(*STATEMENT->VALUE) != arrayTable.end())
+       {
+	       std::cout << "[!] Temporary Error : Since this being the early version , we cannot mutate the an already defined array, sorry " << *STATEMENT->VALUE;
+	       exit(1);
+       }
+
+       // lets just assume that we just have integer values
+       int arraySpace = 0;
+       for (AST_NODE * TEMP : STATEMENT->SUB_VALUES)
+       {
+	       if (TEMP->TYPE != NODE_INT)
+	       {
+		       std::cout << "The current support is only for integer dimensions , sorry..." << std::endl;
+		       exit(1);
+	       }
+               arraySpace = arraySpace == 0 ? arraySpace + std::stoi(*TEMP->VALUE) : arraySpace * std::stoi(*TEMP->VALUE); 
+
+       }
+       
+       int initOffsetCounter = offsetCounter;
+       int currentElementOffset;
+       sectionText << "sub rsp , " << std::to_string(arraySpace * 4) << "\n";
+       int arrayElementCounter;
+       int repeatWriteValue = 0;
+       for (arrayElementCounter = 0 ; arrayElementCounter < arraySpace ; arrayElementCounter++)
+       {
+	  currentElementOffset = ++offsetCounter * 4;
+	  variableVector.push_back(*STATEMENT->VALUE);
+          if (arrayElementCounter < STATEMENT->SUB_STATEMENTS.size())
+	  {
+	       AST_NODE * CURRENT_STATEMENT = STATEMENT->SUB_STATEMENTS[arrayElementCounter];
+	       switch (CURRENT_STATEMENT->TYPE)
+	       {
+		       case NODE_INT:
+		       {
+		        sectionText << "mov dword [rbp - " << std::to_string(currentElementOffset);
+                	sectionText << "] , " + *CURRENT_STATEMENT->VALUE + "\n";
+			repeatWriteValue = std::stoi(*CURRENT_STATEMENT->VALUE);
+                	break;
+                       }
+	               case NODE_VARIABLE: 
+            		{
+
+                        int offset_RHS;
+                	int elemOffset_RHS = variableReferenceExists(CURRENT_STATEMENT->VALUE);
+               		 if (elemOffset_RHS == -1)
+                	{
+                 	   std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *CURRENT_STATEMENT->VALUE << std::endl;
+               		     exit(1);
+               		 }
+
+              		  offset_RHS = (offsetCounter - elemOffset_RHS) * 4; // what to choose between dword and qword
+
+                	sectionText << "\nmov eax , dword [rbp - " + std::to_string(offset_RHS);
+               		 sectionText << "]\nmov dword [rbp - " + std::to_string(currentElementOffset);
+                	sectionText << "] , eax \n\n";
+                	
+                	break;
+            		}	
+
+	       }
+	    
+	  }
+	  else
+	  {
+		  sectionText << "mov dword [rbp - " << std::to_string(currentElementOffset);
+		  sectionText << "] , " << std::to_string(repeatWriteValue) << "\n";
+	  }
+       }
+
+       std::pair <int , int> arrayDetails = std::make_pair(initOffsetCounter + 1 , arraySpace);
+       arrayTable[*STATEMENT->VALUE] = arrayDetails;
+       
     }
 
     void generateVARIABLE(AST_NODE * VAR_ID)
@@ -894,13 +1088,14 @@ class Generator{
             {
                 case NODE_RETURN   : {returnStream << generateRETURN(CURRENT); break;}
                 case NODE_PRINT    : {generatePRINT(CURRENT); break;}
-		        case NODE_GET      : {generateGET(CURRENT); break;}
+	        case NODE_GET      : {generateGET(CURRENT); break;}
                 case NODE_VARIABLE : {generateVARIABLE(CURRENT); break;}
                 case NODE_IF       : {generateIF(CURRENT); break;}
                 case NODE_RANGE    : {generateRANGE(CURRENT); break;}
                 case NODE_TILL     : {generateTILL(CURRENT); break;}
                 case NODE_FUNCTION : {generateFUNCTION(CURRENT); break;}
                 case NODE_CALL     : {generateCALL(CURRENT); break;}
+		case NODE_ARRAY    : {generateARRAY(CURRENT); break;}
 
                 default : {std::cout << "UNRECOGNIZED NODE : "  << nodeToString(CURRENT->TYPE); break;}
             }
@@ -929,6 +1124,8 @@ class Generator{
     std::vector <std::string> variableVector;
     std::unordered_map <std::string , int> stringVariableVector;
     std::unordered_map <std::string , int> functionTable;
+    std::unordered_map <std::string , std::pair <int , int>> arrayTable; //string:name ,pair : first : STARTING OFFSET , second : NUMBER OF ELEMENTS
+    std::vector <std::string> registerArgumentHolders = {"rdi" , "rsi" , "rdx" , "rcx" , "r8" , "r9"};
     int offsetCounter;
     AST_NODE * AST_ROOT;
     std::ofstream assemblyFile;
