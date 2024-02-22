@@ -13,9 +13,12 @@ enum type
     TOKEN_ID,
     TOKEN_INT,
     TOKEN_EQUALS,
+    TOKEN_ARE,
     TOKEN_SEMICOLON,
     TOKEN_LEFT_PAREN,
     TOKEN_RIGHT_PAREN,
+    TOKEN_LEFT_SQR,
+    TOKEN_RIGHT_SQR,
     TOKEN_KEYWORD,
     TOKEN_STRING,
     TOKEN_QUOTES,
@@ -54,9 +57,12 @@ std::string typeToString(enum type TYPE)
         case TOKEN_ID : return "TOKEN_ID";
         case TOKEN_INT : return "TOKEN_INT";
         case TOKEN_EQUALS : return "TOKEN_EQUALS";
-        case TOKEN_SEMICOLON : return "TOKEN_SEMICOLON";
+	case TOKEN_ARE : return "TOKEN_ARE";
+	case TOKEN_SEMICOLON : return "TOKEN_SEMICOLON";
         case TOKEN_LEFT_PAREN : return "TOKEN_LEFT_PAREN";
         case TOKEN_RIGHT_PAREN : return "TOKEN_RIGHT_PAREN";
+	case TOKEN_LEFT_SQR : return "TOKEN_LEFT_SQR";
+	case TOKEN_RIGHT_SQR : return "TOKEN_RIGHT_SQR";
         case TOKEN_KEYWORD : return "TOKEN_KEYWORD";
         case TOKEN_STRING : return "TOKEN_STRING";
         case TOKEN_QUOTES : return "TOKEN_QUOTES";
@@ -105,6 +111,7 @@ class Lexer
 	   return source[cursor + offset];
 	}
     }
+    
 
     char advance () 
     {
@@ -159,6 +166,7 @@ class Lexer
 	{"as" , TOKEN_AS},
 	{"function" , TOKEN_FUNCTION},
 	{"call" , TOKEN_CALL},
+	{"are"  , TOKEN_ARE}
 	
     	
     };
@@ -341,6 +349,16 @@ class Lexer
 			        exit(1);
 
 		        }
+			case '[':
+			{
+				tokens.push_back(tokenizeSPECIAL(TOKEN_LEFT_SQR));
+				break;
+			}
+			case ']':
+			{
+				tokens.push_back(tokenizeSPECIAL(TOKEN_RIGHT_SQR));
+				break;
+			}
 			case '@' :
 			{
 				tokens.push_back(tokenizeSPECIAL(TOKEN_REFERENCE));
