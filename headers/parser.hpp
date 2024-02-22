@@ -11,6 +11,7 @@ enum NODE_TYPE
 {
     NODE_ROOT,
     NODE_VARIABLE,
+    NODE_ARRAY,
     NODE_RETURN,
     NODE_PRINT,
     NODE_GET,
@@ -44,6 +45,7 @@ std::string nodeToString(enum NODE_TYPE TYPE)
     {
         case NODE_ROOT : return "NODE_ROOT";
         case NODE_VARIABLE : return "NODE_VARIABLE";
+	case NODE_ARRAY : return "NODE_ARRAY";
         case NODE_RETURN : return "NODE_RETURN";
         case NODE_PRINT : return "NODE_PRINT";
  	case NODE_GET : return "NODE_GET";
@@ -79,8 +81,9 @@ struct AST_NODE
     std::string * VALUE;
     AST_NODE * CHILD;
     AST_NODE * LIMIT;
-    std::vector <AST_NODE *> SUB_STATEMENTS; // THIS IS ONLY FOR THE ROOT NODE
-    AST_NODE * SUPPLEMENT; // THIS IS FOR TEMPORARY MEASURES				     
+    std::vector <AST_NODE *> SUB_STATEMENTS; 
+    std::vector <AST_NODE *> SUB_VALUES;
+    AST_NODE * SUPPLEMENT; 				     
 };
 
 class Parser{
@@ -179,10 +182,21 @@ class Parser{
         proceed(TOKEN_ID);
 
         AST_NODE * newNode = new AST_NODE();
-
+        
         newNode->VALUE = buffer;
         newNode->TYPE = NODE_VARIABLE;
-
+        
+        if (current->TYPE == TOKEN_LEFT_SQR) // HAVING A SUPPLEMENT LINKAGE IN THE ID OR RHS_IS MEANS THAT IT IS AN ARRAY SUBSCRIPT
+	{
+		proceed(TOKEN_LEFT_SQR);
+		switch (current->TYPE)
+		{
+			case TOKEN_INT : {newNode->SUPPLEMENT = parseINT(); break;}
+            		case TOKEN_ID : {newNode->SUPPLEMENT  = parseID_RHS(); break;}
+            		default : {std::cout << "[!] Syntax Error : Expected an integer or a variable in sub script of the array "; exit(1);}
+		}
+		proceed(TOKEN_RIGHT_SQR);
+	}
         return newNode;
 
     }
@@ -201,6 +215,26 @@ class Parser{
         AST_NODE * newNode = new AST_NODE();
         newNode->TYPE = NODE_CALL;
         newNode->CHILD = parseID_RHS();
+
+	if (current->TYPE == TOKEN_ARGUMENTS)
+	{
+	   proceed(TOKEN_ARGUMENTS);
+	   while (true)
+	   {
+		   switch (current->TYPE)
+		   {
+			   case TOKEN_INT : {newNode->SUB_VALUES.push_back(parseINT()); break;}
+		           case TOKEN_ID  : {newNode->SUB_VALUES.push_back(parseID_RHS()); break;}
+		           default : {
+					     std::cout << "[!] Syntax Error : Expected an integer or a variable in the funtion arguments" << std::endl;
+					     exit(1);
+				     }
+		   }
+		   if (current->TYPE != TOKEN_COMMA)
+			   break;
+		   proceed(TOKEN_COMMA);
+	   }
+	}
         return newNode;
     }
 
@@ -210,6 +244,25 @@ class Parser{
     AST_NODE * newNode = new AST_NODE();
     newNode->TYPE = NODE_FUNCTION;
     newNode->CHILD = parseID_RHS();
+
+    if (current->TYPE == TOKEN_ARGUMENTS)
+    {
+	    proceed(TOKEN_ARGUMENTS);
+
+	    while (true)
+	    {
+		    if (current->TYPE != TOKEN_ID)
+		    {
+			    std::cout << "[!] Syntax Error : Expected the name of the parameter : " << std::endl;
+			    exit(1);
+		    }
+		    newNode->SUB_VALUES.push_back(parseID_RHS());
+		    if (current->TYPE != TOKEN_COMMA)
+			    break; //because this means that we have no other parameters
+		    proceed(TOKEN_COMMA);
+
+	    }
+    }
     
      proceed(TOKEN_INDENT);
 	    if (current->TYPE != TOKEN_SEMICOLON)
@@ -287,15 +340,147 @@ class Parser{
     	return newNode;
     }
 
+
+   AST_NODE * parseARRAY()
+   {
+	   std::string * buffer = &current->VALUE;
+	   proceed(TOKEN_ID);
+           
+	   AST_NODE * newNode = new AST_NODE();
+	   newNode->TYPE = NODE_ARRAY;
+	   newNode->VALUE = buffer;
+		   
+           proceed(TOKEN_EQUALS);
+	   proceed(TOKEN_REL_LESSTHAN);
+
+	   while (true)
+	   {
+		   switch (current->TYPE)
+		   {
+			   case TOKEN_INT: {newNode->SUB_VALUES.push_back(parseINT()); break;}
+		           case TOKEN_ID:  {newNode->SUB_VALUES.push_back(parseID_RHS()); break;}
+			   default : 
+				   {
+					   std::cout << "[!] Error while defining the dimensions of the array : only expected positive integers or variables" << std::endl;
+					   exit(1);
+				   }
+		   }
+		   if (current->VALUE != "*")
+			   break;
+		   else proceed(TOKEN_MATH);
+	   }
+	   // arr is <2x2> (1 , 2) , (3, 4)
+           // this would be implemented later
+
+	   proceed(TOKEN_REL_GREATERTHAN);
+	   while (true)
+	   {
+		
+	   switch(current->TYPE)
+		   {
+		    case TOKEN_INT : {newNode->SUB_STATEMENTS.push_back(parseINT()); break;}
+		    case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID_RHS()); break;}	  
+		    case TOKEN_MATH : 
+		    {
+			    if (current->VALUE != "-")
+			    {
+				    std::cout << "[!] Unsupported mathematical operator while creating the array : " << current->VALUE; 
+				    exit(1);
+
+			    }
+			    newNode->SUB_STATEMENTS.push_back(parseINT(true));
+			    break;
+		    } 
+		    default :
+		     {
+		      std::cout << "[!] Syntax Error while creating the array : , expected either a number or a defined variable"; exit(1);
+		     }
+		   }
+		   if (current->TYPE == TOKEN_SEMICOLON)
+		  	break;
+		   else 
+			   proceed (TOKEN_COMMA);
+	   }
+
+
+	   return newNode;
+   }
+
+   AST_NODE * parse1D_ARRAY()
+   {
+	   std::string * buffer = &current->VALUE;
+	   proceed(TOKEN_ID);
+	   proceed(TOKEN_ARE);
+
+	   AST_NODE * newNode = new AST_NODE();
+	   newNode->TYPE = NODE_ARRAY;
+	   newNode->VALUE = buffer;
+           
+	   int elementCounter = 0;
+	   while (true)
+	   {
+		
+	   switch(current->TYPE)
+		   {
+		    case TOKEN_INT : {newNode->SUB_STATEMENTS.push_back(parseINT()); break;}
+		    case TOKEN_ID : {newNode->SUB_STATEMENTS.push_back(parseID_RHS()); break;}	  
+		    case TOKEN_MATH : 
+		    {
+			    if (current->VALUE != "-")
+			    {
+				    std::cout << "[!] Unsupported mathematical operator while creating the array : " << current->VALUE; 
+				    exit(1);
+
+			    }
+			    newNode->SUB_STATEMENTS.push_back(parseINT(true));
+			    break;
+		    } 
+		    default :
+		     {
+		      std::cout << "[!] Syntax Error while creating the array : , expected either a number or a defined variable"; exit(1);
+		     }
+		   }
+	           elementCounter++;
+		   if (current->TYPE == TOKEN_SEMICOLON)
+		  	break;
+		   else 
+			   proceed (TOKEN_COMMA);
+	   }
+	   
+	   AST_NODE * sizeNODE = new AST_NODE();
+	   sizeNODE->TYPE = NODE_INT;
+	   std::string arraySize = std::to_string(elementCounter);
+	   sizeNODE->VALUE = &arraySize;
+
+	   newNode->SUB_VALUES.push_back(sizeNODE);
+
+	   
+	   return newNode;
+   }
+
+
     AST_NODE * parseID()
     {
         std::string * buffer = &current->VALUE;
-        proceed(TOKEN_ID);
-        proceed(TOKEN_EQUALS);
-
         AST_NODE * newNode = new AST_NODE();
         newNode->VALUE = buffer;
         newNode->TYPE = NODE_VARIABLE;
+        proceed(TOKEN_ID);
+        if (current->TYPE == TOKEN_LEFT_SQR) // HAVING A SUPPLEMENT LINKAGE IN THE ID OR RHS_IS MEANS THAT IT IS AN ARRAY SUBSCRIPT
+	{
+		proceed(TOKEN_LEFT_SQR);
+		switch (current->TYPE)
+		{
+			case TOKEN_INT : {newNode->SUPPLEMENT = parseINT(); break;}
+            		case TOKEN_ID : {newNode->SUPPLEMENT  = parseID_RHS(); break;}
+            		default : {std::cout << "[!] Syntax Error : Expected an integer or a variable in sub script of the array "; exit(1);}
+		}
+		proceed(TOKEN_RIGHT_SQR);
+	}
+        proceed(TOKEN_EQUALS);
+
+        
+    
         
         switch (current->TYPE)
         {
@@ -768,7 +953,16 @@ class Parser{
             switch (current->TYPE)
             {
 
-                case TOKEN_ID : {ROOT->SUB_STATEMENTS.push_back(parseID()); break;}
+                case TOKEN_ID : 
+		{
+		if (tokenSeek(1)->TYPE == TOKEN_ARE)
+			ROOT->SUB_STATEMENTS.push_back(parse1D_ARRAY());
+		else if (tokenSeek(1)->TYPE == TOKEN_EQUALS && tokenSeek(2)->TYPE == TOKEN_REL_LESSTHAN)
+			ROOT->SUB_STATEMENTS.push_back(parseARRAY());
+		else
+			ROOT->SUB_STATEMENTS.push_back(parseID()); 
+		break;
+		}
                 case TOKEN_KEYWORD : {ROOT->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
 	        case TOKEN_RANGE : {ROOT->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
 		case TOKEN_TILL : {ROOT->SUB_STATEMENTS.push_back(parseTILL()); break;}
