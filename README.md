@@ -83,7 +83,12 @@ Statements with the same indentation have the same scope
 The general syntax of a function in pilot is as follows:
 
     function <function_name> :
+        ~ code        
+If the function expects arguments passed to it:
+
+    function <function_name> :: <arguments> :
         ~ code
+        
 **Functions can only be defined in the main scope**
 
 Example :
@@ -93,14 +98,25 @@ Example :
         display.green "Hello There!!"
         display.blue  "Hello There!!"
 
+Cube function :
+
+      function cube :: number :
+           display "The cube of : " , number , " is = " , number * number * number
+           
+    
+
 To call a function , we have the following syntax :
 
     call <functionName>
+To provide arguments while calling : 
+
+    call <functionName> :: <arguments>
 **Functions have to be defined before they called.**
 
 Example :
 
     call sayHelloThrice
+    call cube :: 7    
 (Function can be called from any scope)
 
 
