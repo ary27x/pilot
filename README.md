@@ -9,7 +9,7 @@ FOLLOW THE PROJECT ON YOUTUBE : https://www.youtube.com/playlist?list=PLm7R-cUo2
 
 <h1>PILOT PROGRAMMING LANGUAGE SYNTAX DOCUMENTATION</h1>
 
-*(The syntax of pilot programming language has very high resemblance to the english language , which makes it very easy to read and very beginner friendly.)*
+*(The syntax of pilot programming language has very high resemblance to the english language , which makes it very easy to read and very beginner friendly)*
 
 
 **COMMENTS**
@@ -21,9 +21,11 @@ Comments are denoted using the ~ (BACK TICK) operator.
 
 <hr>
 
-**DECLARING VARIABLES**
+**VARIABLES**
 
-Variables can be declared using the "is" keyword or "=".
+Variable declaration has the following syntax :
+
+    <variable> is <value>
 
 The variable name has to start with either _ (underscore) or a character, but further on it has ability to have either underscore or alphanumeric characters.
 
@@ -34,6 +36,46 @@ The variable name has to start with either _ (underscore) or a character, but fu
     my_dog is "joey"
 
 <hr>
+
+**ARRAYS**
+
+Pilot has support for multidimensional arrays.
+
+Creating a 1D array is as simple as the following syntax :
+
+    <array_name> are <values> ~ <values> can either be an integer or a variable
+Example : 
+
+    favorite_numbers are 27 , 141 , -2
+    IDs are ID1 , ID2 , ID3 , ID4
+
+Accesing the value in the array is done using the [ ] operator as follows:
+
+    display "This is the first ID : " , IDs[0]
+
+**MULTIDIMENSIONAL ARRAYS**
+
+The general syntax for creating a n-dimensional array is as follows :
+
+    <array_name> is <dimension1 * dimension2 * ..... * dimensionN> <values>
+
+Here are some examples :
+
+    favorite_numbers is <3> 27 , 141 , -2 ~ making a 1D array of size 3 
+    matrix is <2*4> 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 ~ making a 2D array of size 2 x 4 
+
+If less number of value are supplied that required into the array , the array will fill in the remaining positions with the last integer that was written into the array , the default write value being 0
+
+Example : 
+
+    space is <50*20*10> 0 ~ creating a 3D array named "space" , equating all the values to 0
+    graph is <2*8> 1 , 2  ~ the first and second element are 1 and 2 , remaining are all equal to 2
+
+(The reason that in the above graph array example all the values are equal to 2 is becase 2 is the last integer write value in the array , hence the remaning vacancies in the array is 
+filled with 2)
+
+<hr>
+
 
 **PRINT**
 
@@ -97,12 +139,12 @@ Example :
         display.red   "Hello There!!"
         display.green "Hello There!!"
         display.blue  "Hello There!!"
-
-Cube function :
-
-      function cube :: number :
+        
+    function cube :: number :
            display "The cube of : " , number , " is = " , number * number * number
-           
+
+    function sum :: first , second : 
+           display "The sum of " , first , " and " , second , " is = " , first + second
     
 
 To call a function , we have the following syntax :
@@ -117,6 +159,7 @@ Example :
 
     call sayHelloThrice
     call cube :: 7    
+    call sum :: a , b
 (Function can be called from any scope)
 
 
