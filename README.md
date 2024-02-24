@@ -116,7 +116,7 @@ For taking multiple inputs , the names of the corresponding variables has to be 
 
 **SCOPING**
 
-Scoping in python is done using identation , not curly brace (similar to python).
+Scoping in Pilot is done using identation , not curly brace (similar to python).
 Statements with the same indentation have the same scope
 <hr>
 
