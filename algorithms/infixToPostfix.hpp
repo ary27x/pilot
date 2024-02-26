@@ -4,56 +4,72 @@
 #include "../headers/parser.hpp"
 #include <stack>
 #include <unordered_map>
+#include <memory>
+#include <vector>
 
-std::unordered_map <enum NODE_TYPE , int> operatorPrecedence = {
-    {NODE_OP_ADD,0},
-    {NODE_OP_SUB,0},
-    {NODE_OP_MUL,1},
-    {NODE_OP_DIV,1},
-    {NODE_OP_MOD,1},
+// Enhanced NodeType with enum class for stronger type safety.
+enum class NodeType {
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+    OP_MOD,
+    INT,
+    VARIABLE
 };
 
-std::stack <AST_NODE * > operatorStack;
+// Operator precedence mapping for determining stack operations.
+std::unordered_map<NodeType, int> operatorPrecedence = {
+    {NodeType::OP_ADD, 0},
+    {NodeType::OP_SUB, 0},
+    {NodeType::OP_MUL, 1},
+    {NodeType::OP_DIV, 1},
+    {NodeType::OP_MOD, 1},
+};
 
-std::vector<AST_NODE *> infixToPostfix(std::vector <AST_NODE *>& operations)
-{
-    std::vector <AST_NODE*> resultant;
+// Class to convert infix expressions to postfix using AST nodes.
+class InfixToPostfixConverter {
+public:
+    // Converts a vector of AST nodes from infix to postfix notation.
+    std::vector<std::shared_ptr<AST_NODE>> convert(const std::vector<std::shared_ptr<AST_NODE>>& operations) {
+        std::vector<std::shared_ptr<AST_NODE>> resultant;
+        std::stack<std::shared_ptr<AST_NODE>> operatorStack;
 
-    for (AST_NODE * CURRENT : operations)
-    {
-        if (CURRENT->TYPE == NODE_INT || CURRENT->TYPE == NODE_VARIABLE)
-            resultant.push_back(CURRENT);
-        else
-        {
-            while (true)
-            {
-                if (operatorStack.size() == 0)
-                {
-                    operatorStack.push(CURRENT); 
-                    break;
-                }
-                else if (operatorPrecedence[operatorStack.top()->TYPE] >= operatorPrecedence[CURRENT->TYPE])
-                {
-                    resultant.push_back(operatorStack.top());
-                    operatorStack.pop();
-                }
-                else 
-                {
-                    operatorStack.push(CURRENT); 
-                    break;
-                }
+        for (const auto& current : operations) {
+            // Skip processing if the current node is null.
+            if (!current) continue;
+
+            // Directly add operands to the resultant vector.
+            if (current->type == NodeType::INT || current->type == NodeType::VARIABLE) {
+                resultant.push_back(current);
+            } else {
+                // Process operators based on their precedence.
+                processOperators(current, resultant, operatorStack);
             }
+        }
 
+        // Empty the stack, adding remaining operators to the resultant vector.
+        while (!operatorStack.empty()) {
+            resultant.push_back(operatorStack.top());
+            operatorStack.pop();
+        }
+
+        return resultant;
+    }
+
+private:
+    // Handles the logic of operator precedence and stacking.
+    void processOperators(const std::shared_ptr<AST_NODE>& current, std::vector<std::shared_ptr<AST_NODE>>& resultant, std::stack<std::shared_ptr<AST_NODE>>& operatorStack) {
+        while (true) {
+            if (operatorStack.empty() || operatorPrecedence.at(current->type) > operatorPrecedence.at(operatorStack.top()->type)) {
+                operatorStack.push(current);
+                break;
+            } else {
+                resultant.push_back(operatorStack.top());
+                operatorStack.pop();
+            }
         }
     }
+};
 
-    while (operatorStack.size() != 0)
-    {
-        resultant.push_back(operatorStack.top());
-        operatorStack.pop();
-    }
-
-    return resultant;
-}
-
-#endif
+#endif // __INFIX_TO_POSTFIX__
