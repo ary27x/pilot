@@ -7,6 +7,7 @@
 #include "headers/parser.hpp"
 #include "headers/generator.hpp"
 
+#include "languageInterfaces/hindi.hpp"
 
 int main(int argc , char ** argv)
 {
@@ -32,6 +33,8 @@ int main(int argc , char ** argv)
     std::string sourceCode = buffer.str();
     sourceCode.append("\0");
 
+    hindiToPilot(sourceCode);
+    
     Lexer lexer(sourceCode);
     std::vector <Token *> tokens = lexer.tokenize();
     int counter = 0;
