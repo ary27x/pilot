@@ -112,13 +112,22 @@ class Parser{
     };
 
     std::vector <std::string> colorSupport = {
+        "black",
         "red" ,
         "green" ,
         "yellow" ,
         "blue" , 
         "purple" ,
         "cyan" ,
-        "white"
+        "white",
+        "background_black",
+        "background_red" ,
+        "background_green" ,
+        "background_yellow" ,
+        "background_blue" , 
+        "background_purple" ,
+        "background_cyan" ,
+        "background_white",
     };
 
     std::vector <std::string> displayUtils = {
@@ -665,7 +674,7 @@ class Parser{
 	    if (!recursiveCall)
 	    {
 	       	proceed (TOKEN_KEYWORD);
-		    if (current->TYPE == TOKEN_DOT)
+		    while (current->TYPE == TOKEN_DOT)
 		    {
 			    proceed(TOKEN_DOT);
 			    if (current->TYPE != TOKEN_ID)
@@ -675,10 +684,16 @@ class Parser{
 			    }
                 if (std::find(colorSupport.begin() , colorSupport.end() , current->VALUE) == colorSupport.end())
                 {
-                std::cout << "[!] SYNTAX ERROR : unknown display sub function called" << std::endl;
-                exit(1);
+                    if (current->VALUE == "inline")
+                        newNode->SUB_VALUES.push_back(parseID_RHS()); // pushing the inline subfunction
+                    else
+                    {
+                        std::cout << "[!] SYNTAX ERROR : unknown display sub function called" << std::endl;
+                        exit(1);
+                    }
                 }
-			    newNode->SUPPLEMENT = parseID_RHS();
+                else
+                    newNode->SUB_VALUES.push_back(parseID_RHS()); // pushing the color call 
 		    }
 	    }
         switch (current->TYPE)
