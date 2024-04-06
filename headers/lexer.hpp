@@ -139,6 +139,24 @@ class Lexer
         while (current == ' ' || current == '\t' || current == '\r')
             advance();
     }
+    bool isAlphaWrapper()
+    {
+        if (isalpha(current))
+            return true;
+        else if ((int) current < 0)
+            return true;
+        else return false;
+    }
+
+    bool isAlnumWrapper()
+    {
+        if (isalnum(current))
+            return true;
+        else if ((int) current < 0)
+            return true;
+        else return false;
+    }
+
 
     std::vector <std::string> keywords = {"return" , "print" , "get","if" , "else"};
 
@@ -168,7 +186,7 @@ class Lexer
         std::stringstream buffer;
         buffer << advance(); 
 
-        while (isalnum(current) || current == '_')
+        while (isAlnumWrapper() || current == '_')
             buffer << advance();
 
         Token * newToken = new Token();
@@ -248,7 +266,7 @@ class Lexer
         while (cursor < size && notEOF)
         {
             checkAndSkip();
-            if(isalpha(current) || current == '_') 
+            if(isAlphaWrapper() || current == '_') 
             {
                 tokens.push_back(tokenizeID_KEYWORD());
                 newLine = false;
@@ -434,6 +452,8 @@ class Lexer
                     std::cout << "LINE NUMBER : " << lineNumber << " CHARACTER NUMBER : " << characterNumber <<std::endl; 
                     exit(1);
                 }
+               
+
             }
         }
         return tokens;
