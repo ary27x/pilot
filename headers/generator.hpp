@@ -1,13 +1,12 @@
 #ifndef __GENERATOR_H
 #define __GENERATOR_H
 
-
 #include "parser.hpp"
 #include "../algorithms/infixToPostfix.hpp"
 #include <fstream>
 #include <vector>
 #include <unordered_map>
-
+#include <stack>
 
 class Generator{
 
@@ -270,15 +269,19 @@ class Generator{
 
     void generatePRINT(AST_NODE * STATEMENT , bool recursiveCall = false)
     {
+        bool inlineFlag = false;
         if (!recursiveCall)
         {
-            if (STATEMENT->SUPPLEMENT) // CALL FOR PRINTING COLORS
+            if (STATEMENT->SUB_VALUES.size() != 0) // CALL FOR PRINTING COLORS
             {
-                sectionText << "mov rax , 1\n";
-                sectionText << "mov rdi , 1\n";
-                sectionText << "mov rsi , " + *STATEMENT->SUPPLEMENT->VALUE + "\n";
-                sectionText << "mov rdx , " + *STATEMENT->SUPPLEMENT->VALUE + "_L\n";
-                sectionText << "syscall \n\n";
+                for (AST_NODE * SUB_FUNCTION : STATEMENT->SUB_VALUES)
+                {
+                    if (*SUB_FUNCTION->VALUE == "inline")
+                        inlineFlag = true;
+                    else
+                        sectionText << "call  _" + *SUB_FUNCTION->VALUE + "\n";
+
+                }
             }
         }
         switch (STATEMENT->CHILD->TYPE)
@@ -379,6 +382,7 @@ class Generator{
                         case NODE_VARIABLE:
                         {
                             limitOffset = variableReferenceExists(STATEMENT->LIMIT->VALUE);
+                            limitOffset = (offsetCounter - limitOffset) * 4;
                             break;
                         }
                         case NODE_INT :
@@ -398,7 +402,6 @@ class Generator{
                     createNewInteger(displayLoopSegmentLHS , &lhsOffset);
                     sectionText << "mov dword [ rbp - " << std::to_string(lhsOffset) << " ] , 1\n";
                     sectionText << displayLoopSegment << ":\n";
-
                     sectionText << "mov eax , dword [ rbp - " << std::to_string(lhsOffset) << " ] \n";
                     sectionText << "mov ebx , dword [ rbp - " << std::to_string(limitOffset) << " ] \n";
                     sectionText << "cmp eax , ebx\n";
@@ -427,18 +430,20 @@ class Generator{
         // we could check for a new line operator from the source code over here
         // instead of explicitly creating the newline
 	
-	if (!recursiveCall) {
-
-            if (STATEMENT->SUPPLEMENT) // CALL FOR PRINTING COLORS
+	if (!recursiveCall) 
+        {
+            int subFunctionCountWithoutInline = 0;
+            for (AST_NODE * CALC_NODE : STATEMENT->SUB_VALUES)
             {
-                sectionText << "mov rax , 1\n";
-                sectionText << "mov rdi , 1\n";
-                sectionText << "mov rsi , reset\n";
-                sectionText << "mov rdx , reset_L\n";
-                sectionText << "syscall \n\n";
+                if (*CALC_NODE->VALUE == "inline")
+                    continue;
+                subFunctionCountWithoutInline++;
             }
-        
-        sectionText << "call _newLine\n"; }
+            if (subFunctionCountWithoutInline != 0) 
+                sectionText << "call  _reset\n";
+            if (!inlineFlag)
+                sectionText << "call _newLine\n"; 
+        }
         
         
     }
@@ -630,7 +635,7 @@ class Generator{
       
        branchCounter++; 
        inScopeGeneration(STATEMENT->SUB_STATEMENTS);
-       
+      
        sectionText << "jmp _BRANCH_" << std::to_string(branchCounterCopy) <<"_EXIT\n";     
        sectionText << "_BRANCH_" << std::to_string(branchCounterCopy) <<"_ELSE:\n";
        
@@ -656,6 +661,7 @@ class Generator{
        tempstream << sectionText.str();
        int startSize = sectionText.str().size(); 
        int initOffsetCounter = offsetCounter;
+       offsetCounter = 0;
 
        functionDefinitions << "\n" << *STATEMENT->CHILD->VALUE << ":\n";    
        functionDefinitions << "push rbp\n";
@@ -814,7 +820,7 @@ class Generator{
 
     void generateVARIABLE(AST_NODE * VAR_ID)
     {
-        int offset;
+    int offset;
 	bool isArray = VAR_ID->SUB_VALUES.size() == 0 ? false : true;
 	if (functionTable.find(*VAR_ID->VALUE) != functionTable.end()) // name collision with function
 	{
@@ -833,17 +839,15 @@ class Generator{
         arrayCheck(VAR_ID);
 		requiredDimensions = arrayTable[*VAR_ID->VALUE];
 	}
-	else // dealing with integer variables
-	{
-	    if (elemOffset == -1)
+	else if (elemOffset == -1 && (VAR_ID->CHILD->TYPE == NODE_INT || VAR_ID->CHILD->TYPE == NODE_MATH)) // dealing with integer variables
             createNewInteger(*VAR_ID->VALUE , &offset);
-	}
+
 
         switch (VAR_ID->CHILD->TYPE) // MAJOR THING : ADD SUPPORT FOR RHS ARRAY VALUES 
         {
             case NODE_INT:
             {
-		if (isArray)
+		if (isArray)    
  		{ 
 			sectionText << "mov ecx , 0\n";
 			for (int dimensionalCounter = 0 ; dimensionalCounter < VAR_ID->SUB_VALUES.size() ; dimensionalCounter++)
@@ -875,7 +879,10 @@ class Generator{
 			       sectionText << "mov ebx , " << std::to_string(requiredDimensions[dimensionalCounter]) << "\n";
                                
 			       sectionText << "imul rax , rbx \n";
-			       sectionText << "add ecx , eax \n";			
+			       sectionText << "add ecx , eax \n";
+
+
+				
 			}
 
 			sectionText << "mov eax , " << *VAR_ID->CHILD->VALUE << "\n";
@@ -885,7 +892,7 @@ class Generator{
 
 		else
 		{     
-                sectionText << "mov dword [rbp - " << std::to_string(offset);
+                sectionText << "mov dword [rbp - " << std::to_string(getIntegerVariableOffset(VAR_ID->VALUE));
                 sectionText << "] , " + * VAR_ID->CHILD->VALUE + "\n";
                 break;
 		}
@@ -893,6 +900,10 @@ class Generator{
             }
             case NODE_MATH: 
             {
+                
+                // elemOffset  = variableReferenceExists(VAR_ID->VALUE);
+                // elemOffset = (offsetCounter - elemOffset) * 4;
+                offset = getIntegerVariableOffset(VAR_ID->VALUE);
                 generateMATH(VAR_ID->CHILD->SUB_STATEMENTS);
                 sectionText << "mov dword [rbp - " << std::to_string(offset);
                 sectionText << "] , eax \n";
@@ -903,7 +914,7 @@ class Generator{
 
                 int offset_RHS;
                 int elemOffset_RHS = variableReferenceExists(VAR_ID->CHILD->VALUE);
-				offset_RHS = (offsetCounter - elemOffset_RHS) * 4;
+		offset_RHS = (offsetCounter - elemOffset_RHS) * 4;
                 if (elemOffset_RHS == -1)
                 {
                     std::cout << "[!] SYNTAX ERROR : Undefined variable : " << *VAR_ID->CHILD->VALUE << std::endl;
@@ -911,7 +922,8 @@ class Generator{
                 }
 
 		if (isArray) 
-		{	
+		{
+			
 			sectionText << "mov ecx , 0\n";
 			for (int dimensionalCounter = 0 ; dimensionalCounter < VAR_ID->SUB_VALUES.size() ; dimensionalCounter++)
 			{
@@ -943,13 +955,18 @@ class Generator{
                                
 			       sectionText << "imul rax , rbx \n";
 			       sectionText << "add ecx , eax \n";
+
+
 				
-			}			
+			}
+
+			
 			sectionText << "mov eax , dword [rbp - " << std::to_string(offset_RHS) << "]\n";
 			sectionText << "mov [" << *VAR_ID->VALUE << " + ecx * 4] , eax\n";
 		}
 		else
 		{
+
                 sectionText << "\nmov eax , dword [rbp - " + std::to_string(offset_RHS);
                 sectionText << "]\nmov dword [rbp - " + std::to_string(offset);
                 sectionText << "] , eax \n\n";
@@ -961,7 +978,7 @@ class Generator{
             case NODE_STRING:
             {
                 int elemOffset = variableReferenceExists(VAR_ID->VALUE);
-                if (elemOffset != -1 ){std::cout << "[!] SYNTAX ERROR : Cannot cross link a string and an integer variable"; exit(1);;}
+                if (elemOffset != -1 ){std::cout << "[!] SYNTAX ERROR : Cannot Cross link a string and an integer variable"; exit(1);;}
                
                 int referenceNumber = handleStringData(VAR_ID->CHILD->VALUE);
                 stringVariableVector[*VAR_ID->VALUE] = referenceNumber;
@@ -973,7 +990,6 @@ class Generator{
                 exit(1);
             }
         }
-
     }
     
 
@@ -985,20 +1001,14 @@ class Generator{
         loopBranchCounter = 0;
         displayLoopCounter = 0;
         tillCounter = 0;
-		
         includes << "\%include \"asm/readINTEGER.asm\" \n";
 	    includes << "\%include \"asm/printINTEGER.asm\" \n\n" ; 
-        includes << "\%include \"asm/colors.asm\" \n\n" ; 
-		
+        includes << "\%include \"asm/colorWrapper.asm\" \n\n" ; 
         sectionData << "section .data\n\n";
 	    sectionBss << "section .bss \n\n";
-		
         sectionText << "section .text\n\nglobal _start\n_start:\n\npush rbp\nmov rbp , rsp\n\n";
-        sectionText << "mov rax , 1\n";
-        sectionText << "mov rdi , 1\n";
-        sectionText << "mov rsi , white\n";
-        sectionText << "mov rdx , white_L\n";
-        sectionText << "syscall \n\n";
+        
+        sectionText << "call _white\n\n";
         
         for (AST_NODE * CURRENT : AST_ROOT->SUB_STATEMENTS)
         {
@@ -1023,7 +1033,6 @@ class Generator{
         stackReset << "\nadd rsp , " + std::to_string(offsetCounter * 4);
         stackReset << "\nmov rsp , rbp\n";
         stackReset << "pop rbp\n\n";
-		
         writeSections();
     }
     
@@ -1043,6 +1052,7 @@ class Generator{
     int tillCounter;
     std::vector <std::string *> stringReferences;
     std::vector <std::string> variableVector;
+    // std::stack 
     std::unordered_map <std::string , int> stringVariableVector;
     std::unordered_map <std::string , int> functionTable;
     std::unordered_map <std::string , std::vector<int>> arrayTable; // string : name , std::vector<int> : dimensions
