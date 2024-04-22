@@ -1,0 +1,233 @@
+tape is <10> 0
+INPUT_tape is <10> 0
+state_dictionary is <2*10*3> 0
+
+dictionary_index is 0 
+dictionary_row is 5   
+rw_head is 3 ~ This would halt after 40 operations
+
+running is 1
+halted is 0
+op_number is 0
+
+machine_state is running
+
+function initializeTape :
+    range 0 to 9 as index : 
+        mod1 is index % 3
+        mod2 is index % 5
+        if mod1 == 0 : 
+            tape[index] is 1
+        if mod2 == 0 : 
+            tape[index] is 1
+    range 0 to 9 as index : 
+        INPUT_tape[index] is tape[index]
+
+function initializeStateDictionary_0 : 
+    writeColumn is 0
+    shiftColumn is 1
+    stateColumn is 2
+    range 0 to 9 as index : 
+       mod2 is index % 2
+       mod3 is index % 3
+       mod4 is index % 4
+       mod5 is index % 5
+       if mod2 == 0 :
+           state_dictionary[0][index][writeColumn] is 1
+       if mod3 == 0 :
+           state_dictionary[0][index][shiftColumn] is 1 
+       if mod4 == 0 : 
+           state_dictionary[0][index][shiftColumn] is 1
+       ~ Writing the state values
+       if mod5 == 0 :
+          state_dictionary[0][index][stateColumn] is index - 1
+       if mod2 == 0 :
+          state_dictionary[0][index][stateColumn] is index + 1
+       if mod3 == 0 : 
+          state_dictionary[0][index][stateColumn] is index -1
+       if index == 0 :
+          state_dictionary[0][index][stateColumn] is 7
+       if index == 1 :
+          state_dictionary[0][index][stateColumn] is 0
+       if index == 7 :
+          state_dictionary[0][index][stateColumn] is 1
+       if index == 4 :
+          state_dictionary[0][index][stateColumn] is 6
+       if index == 4 :
+          state_dictionary[0][index][shiftColumn] is 0
+          
+
+function initializeStateDictionary_1 : 
+    writeColumn is 0
+    shiftColumn is 1
+    stateColumn is 2
+    range 0 to 9 as index : 
+       mod2 is index % 2
+       mod3 is index % 3
+       mod4 is index % 4
+       mod5 is index % 5
+       if mod3 == 0 :
+           state_dictionary[1][index][writeColumn] is 1
+       if mod2 == 0 :
+           state_dictionary[1][index][shiftColumn] is 1 
+       if mod5 == 0 : 
+           state_dictionary[1][index][shiftColumn] is 1
+       ~ Writing the state values
+       if mod2 == 0 :
+          state_dictionary[1][index][stateColumn] is index - 1
+       if mod3 == 0 :
+          state_dictionary[1][index][stateColumn] is index + 1
+       if mod5 == 0 : 
+          state_dictionary[1][index][stateColumn] is index -1
+       if index == 7 :
+          state_dictionary[1][index][stateColumn] is 0 
+       if index == 0 :
+          state_dictionary[1][index][stateColumn] is 9
+       if index == 1 :
+          state_dictionary[1][index][stateColumn] is 7
+       if index == 6 :
+          state_dictionary[1][index][stateColumn] is 2
+       if index == 9 : 
+          state_dictionary[1][index][stateColumn] is 9
+                 
+       
+function initializeStateDictionary:
+    call initializeStateDictionary_0
+    call initializeStateDictionary_1
+
+function renderInput : 
+    range 0 to 9 as index : 
+       display.green.inline INPUT_tape[index]
+    
+function renderOutput : 
+    range 0 to 9 as index : 
+       display.green.inline tape[index] 
+
+function leftPadding :: paddingValue : 
+     display.inline " " * paddingValue
+
+function newLine :: newLineCounter : 
+    range 1 to newLineCounter : 
+       display ""
+
+function renderHead :: headOffset :
+    leftOffset is headOffset * 4 + 30
+    call newLine :: 1
+    call leftPadding :: leftOffset
+    display.purple "  ^  "
+    call leftPadding :: leftOffset
+    display.purple "[RWH]"
+
+function renderStateDictionary :: current_dictionary_row , current_dictionary_index :
+    localPadding is 10
+    call newLine :: 1
+    call leftPadding :: 23
+    display.inline "-------------------------" 
+    call leftPadding :: 18
+    display "-------------------------" 
+    call leftPadding :: 10
+    display.inline.red "[*] Case 0 : "
+    display.inline.green "| Write | Shift |  Row  |"
+    call leftPadding :: 5
+    display.inline.red "[*] Case 1 : "
+    display.inline.green "| Write | Shift |  Row  |"
+    call newLine :: 1
+    call leftPadding :: 23 
+    display.inline "-------------------------" 
+    call leftPadding :: 18
+    display "-------------------------" 
+    
+    range 0 to 9 as i : 
+       call leftPadding :: localPadding  
+       range 0 to 1 as current_dictionary :
+           if i == current_dictionary_row :
+               if current_dictionary == current_dictionary_index :
+                   display.inline.red "    ---->    "
+               else : 
+                   call leftPadding :: 13
+           else : 
+                   call leftPadding :: 13
+                   
+           if i == current_dictionary_row :
+               if current_dictionary == current_dictionary_index : 
+                   display.inline.background_red "|"  
+               else : 
+                   display.inline "|"
+           else :
+               display.inline "|"
+           range 0 to 2 as j : 
+             if i == current_dictionary_row : 
+                 if current_dictionary == current_dictionary_index : 
+                     display.inline.background_red "   " ,state_dictionary[current_dictionary][i][j], "   |"            
+                 else :
+                     display.inline "   " , state_dictionary[current_dictionary][i][j] , "   |"
+             else :           
+                 display.inline "   " , state_dictionary[current_dictionary][i][j] , "   |"
+           call leftPadding :: 5  
+       call newLine :: 1
+    call leftPadding :: 23 
+    display.inline "-------------------------" 
+    call leftPadding :: 18
+    display "-------------------------" 
+
+function renderTape :
+   localPadding is 30
+   call leftPadding :: localPadding
+   range 0 to 40 :  
+       display.inline "-"
+   call newLine :: 1
+   call leftPadding :: localPadding
+   display.inline "|"
+   range 0 to 9 as i :
+       if tape[i] == 0 :
+           display.inline.red " " , tape[i] 
+           display.inline " |" 
+       else :
+           display.inline.cyan " " , tape[i] 
+           display.inline " |" 
+   call newLine :: 1
+   call leftPadding :: localPadding
+   range 0 to 40 :   
+       display.inline "-"
+
+
+function render :: head_state , current_dictionary_row , current_dictionary_index , current_op_number : 
+  display.cyan   "[~] Turing Machine Simulator "
+  display.green.inline "[*] Tape Input : "
+  call renderInput
+  call newLine :: 1
+  display.green  "[*] Total Operations : " , current_op_number
+  display.yellow "[!] Current RW_Head Offset : " , head_state
+  display.yellow "[!] Current Tape State : "
+  call newLine :: 1 
+  call renderTape
+  call renderHead :: head_state
+  call renderStateDictionary :: current_dictionary_row , current_dictionary_index 
+
+
+call initializeTape
+call initializeStateDictionary
+
+till machine_state == running :
+   clear 
+   call render :: rw_head , dictionary_row , dictionary_index , op_number 
+   if rw_head == 9 :
+      machine_state is halted
+   else : 
+     TEMP_dictionary_row is state_dictionary[dictionary_index][dictionary_row][2]
+     TEMP_dictionary_index is tape[rw_head]   
+     tape[rw_head] is state_dictionary[dictionary_index][dictionary_row][0]
+     if state_dictionary[dictionary_index][dictionary_row][1] == 0 :
+        rw_head is rw_head - 1
+     else :
+        rw_head is rw_head + 1
+     dictionary_index is TEMP_dictionary_index
+     dictionary_row is TEMP_dictionary_row
+     op_number is op_number + 1
+     sleep :: 1
+
+
+call newLine :: 2
+display.green "[!] Machine Halted At Offset Number : " , rw_head
+display.green.inline "[*] Tape Output -> "
+call renderOutput
