@@ -12,7 +12,9 @@ enum NODE_TYPE
     NODE_ROOT,
     NODE_VARIABLE,
     NODE_ARRAY,
+    NODE_ARRAY_VARIABLE,
     NODE_RETURN,
+    NODE_EXIT,
     NODE_PRINT,
     NODE_GET,
     NODE_INT,
@@ -36,7 +38,8 @@ enum NODE_TYPE
     NODE_OP_MUL,
     NODE_OP_DIV,
     NODE_OP_MOD,
-
+    NODE_CLEAR,
+    NODE_SLEEP
 };
 
 std::string nodeToString(enum NODE_TYPE TYPE)
@@ -46,7 +49,9 @@ std::string nodeToString(enum NODE_TYPE TYPE)
         case NODE_ROOT : return "NODE_ROOT";
         case NODE_VARIABLE : return "NODE_VARIABLE";
 	    case NODE_ARRAY : return "NODE_ARRAY";
+        case NODE_ARRAY_VARIABLE : return "NODE_ARRAY_VARIABLE";
         case NODE_RETURN : return "NODE_RETURN";
+        case NODE_EXIT : return "NODE_EXIT";
         case NODE_PRINT : return "NODE_PRINT";
  	    case NODE_GET : return "NODE_GET";
         case NODE_INT : return "NODE_INT";
@@ -69,7 +74,9 @@ std::string nodeToString(enum NODE_TYPE TYPE)
     	case NODE_OP_SUB : return "NODE_OP_SUB";
     	case NODE_OP_MUL : return "NODE_OP_MUL";
     	case NODE_OP_DIV : return "NODE_OP_DIV";
-    	case NODE_OP_MOD : return "NODE_OP_MOD";  		     
+    	case NODE_OP_MOD : return "NODE_OP_MOD";  
+        case NODE_CLEAR : return "NODE_CLEAR";	
+        case NODE_SLEEP : return "NODE_SLEEP";	     
     	default : return "UNRECOGNIZED NODE";      
     }
 }
@@ -230,7 +237,18 @@ class Parser{
         proceed(TOKEN_SEMICOLON);
 	    switch (current->TYPE)
             {
-            case TOKEN_ID      : {newNode->SUB_STATEMENTS.push_back(parseID()); break;}
+            case TOKEN_ID : 
+		    {
+                if (tokenSeek(1)->TYPE == TOKEN_ARE)
+			        newNode->SUB_STATEMENTS.push_back(parse1D_ARRAY());
+		        else if (tokenSeek(1)->TYPE == TOKEN_EQUALS && tokenSeek(2)->TYPE == TOKEN_REL_LESSTHAN)
+			        newNode->SUB_STATEMENTS.push_back(parseARRAY());
+		        else if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR)
+			        newNode->SUB_STATEMENTS.push_back(parseARRAY_VARIABLE());
+                else 
+			        newNode->SUB_STATEMENTS.push_back(parseID()); 
+		        break;
+		    }
             case TOKEN_KEYWORD : {newNode->SUB_STATEMENTS.push_back(parseKEYWORD()); break;}
 	        case TOKEN_RANGE   : {newNode->SUB_STATEMENTS.push_back(parseRANGE()); break;} 
 		    case TOKEN_TILL    : {newNode->SUB_STATEMENTS.push_back(parseTILL()); break;}
@@ -273,12 +291,7 @@ class Parser{
         
 	    if (isReference)
 		    newNode->REFERENCE = isReference;
-	    while (current->TYPE == TOKEN_LEFT_SQR) // HAVING A NON ZERO SIZE IN THE SUB_VALUE VECTOR MEANS THAT THIS AN ARRAY 
-	    {
-		    proceed(TOKEN_LEFT_SQR);
-            subParseINT_ID(newNode->SUB_VALUES); 
-		    proceed(TOKEN_RIGHT_SQR);
-	    }
+        
         return newNode;
     }
 
@@ -380,8 +393,7 @@ class Parser{
     	return newNode;
     }
 
-
-   AST_NODE * parseARRAY()
+    AST_NODE * parseARRAY()
    {
 
 	    std::string * buffer = &current->VALUE;
@@ -414,7 +426,7 @@ class Parser{
 	   return newNode;
    }
 
-   AST_NODE * parse1D_ARRAY()
+    AST_NODE * parse1D_ARRAY()
    {
 	   std::string * buffer = &current->VALUE;
 	   proceed(TOKEN_ID);
@@ -445,28 +457,132 @@ class Parser{
 
 	   return newNode;
    }
+ 
+    AST_NODE * parseARRAY_VARIABLE() // PARSING RHS ARRAY VALUES 
+   {
+    std::string * buffer = &current->VALUE;
+    AST_NODE * newNode = new AST_NODE();
+    newNode->TYPE = NODE_ARRAY_VARIABLE;
+    newNode->VALUE = buffer;
 
+    proceed(TOKEN_ID);
+    while (current->TYPE == TOKEN_LEFT_SQR)
+	{
+		proceed(TOKEN_LEFT_SQR);
+        subParseINT_ID(newNode->SUB_VALUES);
+		proceed(TOKEN_RIGHT_SQR);
+    }
+
+    proceed(TOKEN_EQUALS);
+    switch (current->TYPE)
+    {
+        case TOKEN_INT    : {newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT(); break;}
+        case TOKEN_ID     : 
+        {
+            if (tokenSeek(1)->TYPE == TOKEN_MATH) 
+                newNode->CHILD = parseMATH();
+            else if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR) 
+                newNode->CHILD = parseRHS_ARRAY();
+            else
+                newNode->CHILD = parseID_RHS();
+            break;
+        }
+        case TOKEN_MATH   : 
+		{
+			if (current->VALUE != "-")
+			{
+				std::cout << "[!} Syntax Error : Unindentified Token : " << typeToString(current->TYPE) << std::endl;
+				exit(1);
+			}
+			newNode->CHILD = parseINT(true); 
+            break;
+		}
+        case TOKEN_CALL   :
+        {
+            newNode->CHILD = parseCALL();
+            break;
+        }
+       
+        default : 
+        {
+            std::cout << "[!] SYNTAX ERROR : Unidentified Token : " << typeToString(current->TYPE) << std::endl;
+            exit(1);
+        }
+        }    
+    
+    return newNode;
+
+   }
+
+    AST_NODE * parseRHS_ARRAY()
+    {
+        std::string * buffer  = &current->VALUE;
+        AST_NODE * newNode = new AST_NODE();
+        newNode->VALUE = buffer;
+        newNode->TYPE = NODE_ARRAY_VARIABLE;
+        proceed(TOKEN_ID);
+
+        while (current->TYPE == TOKEN_LEFT_SQR)
+	    {
+		    proceed(TOKEN_LEFT_SQR);
+            subParseINT_ID(newNode->SUB_VALUES);
+		    proceed(TOKEN_RIGHT_SQR);
+	    }
+        
+        return newNode;
+
+    }
+    
+    AST_NODE * parseSLEEP()
+    {
+        AST_NODE * newNode = new AST_NODE();
+        newNode->TYPE = NODE_SLEEP;
+
+        proceed(TOKEN_KEYWORD);
+        proceed(TOKEN_ARGUMENTS);
+
+        switch(current->TYPE)
+        {
+            case TOKEN_INT    : {newNode->CHILD = parseINT(); break;}
+            case TOKEN_ID     : 
+            {
+                if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR) 
+                    newNode->CHILD = parseRHS_ARRAY();
+                else
+                    newNode->CHILD = parseID_RHS();
+                break;
+            }
+            default : 
+            {
+                std::cout << "[!] SYNTAX ERROR : Unidentified Token : " << typeToString(current->TYPE) << std::endl;
+                exit(1);
+            }
+        }
+        return newNode;
+        
+    }
 
     AST_NODE * parseID()
     {
-        
         std::string * buffer = &current->VALUE;
         AST_NODE * newNode = new AST_NODE();
         newNode->VALUE = buffer;
         newNode->TYPE = NODE_VARIABLE;
         proceed(TOKEN_ID);
 
-	    while (current->TYPE == TOKEN_LEFT_SQR)
-	    {
-		    proceed(TOKEN_LEFT_SQR);
-            subParseINT_ID(newNode->SUB_VALUES);
-		    proceed(TOKEN_RIGHT_SQR);
-	    }
         proceed(TOKEN_EQUALS);
         switch (current->TYPE)
         {
             case TOKEN_INT    : {newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseINT(); break;}
-            case TOKEN_ID     : {newNode->CHILD =  (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS(); break;}
+            case TOKEN_ID     : {
+                if (tokenSeek(1)->TYPE == TOKEN_MATH) 
+                    newNode->CHILD = parseMATH();
+                else if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR) 
+                    newNode->CHILD = parseRHS_ARRAY();
+                else
+                    newNode->CHILD = parseID_RHS();
+                break;
+                }
             case TOKEN_MATH   : 
 			{
 				if (current->VALUE != "-")
@@ -474,8 +590,14 @@ class Parser{
 					std::cout << "[!} Syntax Error : Unindentified Token : " << typeToString(current->TYPE) << std::endl;
 					exit(1);
 				}
-				newNode->CHILD = parseINT(true); break;
+				newNode->CHILD = parseINT(true); 
+                break;
 			}
+             case TOKEN_CALL   :
+            {   
+                newNode->CHILD = parseCALL();
+                break;
+            }
             case TOKEN_QUOTES :
             {
                 proceed(TOKEN_QUOTES);
@@ -497,7 +619,38 @@ class Parser{
         proceed(TOKEN_KEYWORD);
         AST_NODE * newNode = new AST_NODE();
         newNode->TYPE = NODE_RETURN;
-        newNode->CHILD = parseINT();
+
+        switch(current->TYPE)
+        {
+	        case TOKEN_ID  : {newNode->CHILD = parseID_RHS(); break;}
+	        case TOKEN_INT : {newNode->CHILD = parseINT(); break;}
+	        default        : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}
+        }
+
+        return newNode;
+    }
+
+    AST_NODE * parseEXIT()
+    {
+        proceed(TOKEN_KEYWORD);
+        AST_NODE * newNode = new AST_NODE();
+        newNode->TYPE = NODE_EXIT;
+
+        switch(current->TYPE)
+        {
+	        case TOKEN_ID  : {newNode->CHILD = parseID_RHS(); break;}
+	        case TOKEN_INT : {newNode->CHILD = parseINT(); break;}
+	        default        : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}
+        }
+
+        return newNode;
+    }
+
+    AST_NODE * parseCLEAR()
+    {
+        proceed(TOKEN_KEYWORD);
+        AST_NODE * newNode = new AST_NODE();
+        newNode->TYPE = NODE_CLEAR;
 
         return newNode;
     }
@@ -521,7 +674,12 @@ class Parser{
 
 	    AST_NODE * newNode = new AST_NODE();
 	    newNode->TYPE = NODE_GET;
-	    newNode->CHILD = parseID_RHS();
+
+        if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR) 
+            newNode->CHILD = parseRHS_ARRAY();
+        else
+            newNode->CHILD = parseID_RHS();
+
 
 	    if (current->TYPE == TOKEN_COMMA)
 	    {
@@ -537,9 +695,18 @@ class Parser{
 	    newNODE->TYPE = NODE_CONDITION;
         switch(current->TYPE)
         {
-	        case TOKEN_ID  : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseID_RHS()); break;}
-	        case TOKEN_INT : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseINT()); break;}
-	        default        : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}
+            case TOKEN_ID   : 
+            {
+            if (tokenSeek(1)->TYPE == TOKEN_MATH)
+                newNODE->SUB_STATEMENTS.push_back(parseMATH());
+            else if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR) 
+                newNODE->SUB_STATEMENTS.push_back(parseRHS_ARRAY());
+            else
+                newNODE->SUB_STATEMENTS.push_back(parseID_RHS());
+            break;
+            }
+            case TOKEN_INT : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseINT()); break;}
+            default        : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}
         }
         AST_NODE * operatorNODE = new AST_NODE();
         switch(current->TYPE)
@@ -555,8 +722,17 @@ class Parser{
         newNODE->SUB_STATEMENTS.push_back(operatorNODE);
         switch(current->TYPE)
         {
-	        case TOKEN_ID : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseID_RHS()); break;}
-	        case TOKEN_INT : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseINT()); break;}
+	        case TOKEN_ID   : 
+            {
+            if (tokenSeek(1)->TYPE == TOKEN_MATH)
+                newNODE->SUB_STATEMENTS.push_back(parseMATH());
+            else if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR) 
+                newNODE->SUB_STATEMENTS.push_back(parseRHS_ARRAY());
+            else
+                newNODE->SUB_STATEMENTS.push_back(parseID_RHS());
+            break;
+            }
+            case TOKEN_INT : {newNODE->SUB_STATEMENTS.push_back((tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() :parseINT()); break;}
 	        default : { std::cout << "[!] SYNTAX ERROR : Unexpected Token : " << typeToString(current->TYPE) << std::endl; exit(1);}
 	    }
         return newNODE;
@@ -667,7 +843,6 @@ class Parser{
 	    return newNODE;
     }
 
-
     AST_NODE * parsePRINT(bool recursiveCall = false) // current support is only for 32 bits numbers
     {
     	AST_NODE * newNode = new AST_NODE();
@@ -677,15 +852,19 @@ class Parser{
 		    while (current->TYPE == TOKEN_DOT)
 		    {
 			    proceed(TOKEN_DOT);
+
 			    if (current->TYPE != TOKEN_ID)
 			    {
 				std::cout << "[!] SYNTAX ERROR : error in the display sub function call " << std::endl;
 				exit(1);
 			    }
+
                 if (std::find(colorSupport.begin() , colorSupport.end() , current->VALUE) == colorSupport.end())
                 {
                     if (current->VALUE == "inline")
+                    {
                         newNode->SUB_VALUES.push_back(parseID_RHS()); // pushing the inline subfunction
+                    }
                     else
                     {
                         std::cout << "[!] SYNTAX ERROR : unknown display sub function called" << std::endl;
@@ -693,7 +872,9 @@ class Parser{
                     }
                 }
                 else
+                {
                     newNode->SUB_VALUES.push_back(parseID_RHS()); // pushing the color call 
+                }
 		    }
 	    }
         switch (current->TYPE)
@@ -707,7 +888,13 @@ class Parser{
             case TOKEN_ID :
             {
                 newNode->TYPE = NODE_PRINT;
-                newNode->CHILD = (tokenSeek(1)->TYPE == TOKEN_MATH) ? parseMATH() : parseID_RHS();
+                if (tokenSeek(1)->TYPE == TOKEN_MATH)
+			        newNode->CHILD = parseMATH();
+		        else if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR)
+			            newNode->CHILD = parseRHS_ARRAY();
+                else 
+			        newNode->CHILD = parseID_RHS();
+
                 break;
             }
             case TOKEN_QUOTES :
@@ -716,6 +903,7 @@ class Parser{
                 newNode->TYPE = NODE_PRINT;
                 newNode->CHILD = parseSTRING();
                 proceed(TOKEN_QUOTES);
+                
                 if (current->TYPE == TOKEN_MATH && (current->VALUE == "times" || current->VALUE == "*"))
                 {
                     proceed(TOKEN_MATH);
@@ -745,12 +933,19 @@ class Parser{
     {
         if (current->VALUE == "return")
             return parseRETURN();
+        else if (current->VALUE == "exit")
+            return parseEXIT();
         else if (current->VALUE == "print")
             return parsePRINT();
 	    else if (current->VALUE == "get")
 	        return parseGET();
 	    else if (current->VALUE == "if")
         	return parseIF();
+        else if (current->VALUE == "clear")
+            return parseCLEAR();
+        else if (current->VALUE == "sleep")
+            return parseSLEEP();
+        
         else 
         { 
             std::cout << "[!] SYNTAX ERROR , UNDEFINED KEYWORD " << std::endl; 
@@ -774,7 +969,9 @@ class Parser{
 			            ROOT->SUB_STATEMENTS.push_back(parse1D_ARRAY());
 		            else if (tokenSeek(1)->TYPE == TOKEN_EQUALS && tokenSeek(2)->TYPE == TOKEN_REL_LESSTHAN)
 			            ROOT->SUB_STATEMENTS.push_back(parseARRAY());
-		            else
+		            else if (tokenSeek(1)->TYPE == TOKEN_LEFT_SQR)
+			            ROOT->SUB_STATEMENTS.push_back(parseARRAY_VARIABLE());
+                    else 
 			            ROOT->SUB_STATEMENTS.push_back(parseID()); 
 		            break;
 		        }
