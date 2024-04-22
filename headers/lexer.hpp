@@ -158,7 +158,7 @@ class Lexer
     }
 
 
-    std::vector <std::string> keywords = {"return" , "print" , "get","if" , "else"};
+    std::vector <std::string> keywords = {"return" , "print" , "get","if" , "else" , "exit" , "clear" , "sleep"};
 
     std::unordered_map <std::string , std::string> translatables = {
     {"display" , "print"}
