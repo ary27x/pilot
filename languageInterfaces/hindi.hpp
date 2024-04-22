@@ -7,7 +7,6 @@
 #include <sstream>
 #include <regex>
 
-std::vector <std::string> stringBufferVector;
 std::unordered_map <std::string , std::string> hindiDoubleKeywordToEnglish = 
 {
     {"जब तक" , "till"},
@@ -20,6 +19,7 @@ std::unordered_map <std::string , std::string> hindiKeywordToEnglish =
     {"प्रदर्शन" ,   "display"},
     {"डिस्प्ले"  ,   "display"},
     {"प्राप्त"  ,    "get"},
+    {"डाले" , "get"},
     {"कार्य"   ,   "function"},
     {"कॉल"   ,    "call"},
     {"क्रम"   ,   "range"},
@@ -37,7 +37,11 @@ std::unordered_map <std::string , std::string> hindiKeywordToEnglish =
     {"पीछे_हरा" , "background_green"},
     {"पीछे_पीला" , "background_yellow"},
     {"पीछे_नीला" , "background_blue"},
-    {"पीछे_सफ़ेद" , "background_white"},   
+    {"पीछे_सफ़ेद" , "background_white"},
+    {"साफ़" , "clear"},
+    {"लौटाए" , "return"},
+    {"रुके" , "sleep"},
+    {"समाप्त" , "exit"}, 
 };
 
 std::unordered_map <std::string , std::string> hindiNumeralToEnglishNumeral = 
@@ -53,6 +57,10 @@ std::unordered_map <std::string , std::string> hindiNumeralToEnglishNumeral =
     {"९" , "9"},
     {"०" , "0"}
 };
+
+std::vector <std::string> stringBufferVector;
+
+// ttranlsate the display sub functions
 
 void checkQuotesBalance(std::string& sourceCode)
 {
@@ -70,7 +78,7 @@ void checkQuotesBalance(std::string& sourceCode)
 }
 
 
-void hindiToPilot(std::string& sourceCode)
+void hindiToPilot(std::string& sourceCode) // write better logic to not convert hindi words or numerals which are in quotes
 {
     checkQuotesBalance(sourceCode);
     int i;
