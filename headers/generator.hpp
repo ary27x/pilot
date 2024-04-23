@@ -58,7 +58,7 @@ class Generator{
             }
             case NODE_VARIABLE : 
             {
-                // CANNOT RETURN VARIALBE INTEGERS BECAUSE OF THE DESTRUCTION OF THE STACK FRAME 
+                // CANNOT EXIT WITH VARIALBE INTEGERS CODE BECAUSE OF THE DESTRUCTION OF THE STACK FRAME 
                 // AND THE SUBSEQUENT READING FROM THE STACK OFFSET IS CAUSING A SEGMENATION FAULT 
                 // AND CRASHING THE PROGRAM (fiix this later)
 
@@ -68,7 +68,7 @@ class Generator{
                 // exitBuffer << "mov rax , 60\n";
                 // exitBuffer << "syscall\n\n";
                 
-                std::cout << "[~] WARNING : Varible return types are as of now not supported , returning 0" << std::endl;
+                std::cout << "[~] WARNING : Varible return types are as of now not supported , exiting with code 0" << std::endl;
                 // exitBuffer << "mov rax , 60\n";
                 // exitBuffer << "mov rdi , 0\n";
                 // exitBuffer << "\nsyscall\n\n";
